@@ -11,12 +11,13 @@
   if (lang !== 'tr' && lang !== 'en') lang = DEFAULT_LANG;
   root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
   window.MA_LOADER = true;
+  window.MA_SITE = true; // çevrimiçi mod sadece gerçek sitede (claude.ai önizlemesinde değil)
   root.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı · Mission Architect' : 'Mission Architect · Görev Mimarı';
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
-  ['icons', 'data', 'model', 'sim', 'viz', 'ui', 'tour'].forEach(function (f) {
+  ['firebase-config.js'].concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
     var s = document.createElement('script');
-    s.src = base + 'js/' + f + '.js';
+    s.src = src;
     s.async = false;
     document.body.appendChild(s);
   });

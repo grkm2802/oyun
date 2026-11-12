@@ -5,10 +5,10 @@
    CACHE adı yayın betiği (scripts/build_site.py) tarafından her yayında değiştirilir. */
 const CACHE = 'ma-%BUILD_ID%';
 const CORE = [
-  './', 'index.html', 'loader.js', 'site.webmanifest',
+  './', 'index.html', 'loader.js', 'firebase-config.js', 'site.webmanifest',
   'mission-game/css/style.css',
   'assets/favicon-32.png', 'assets/icon-192.png', 'assets/icon-512.png', 'assets/apple-touch-icon.png',
-  ...['icons', 'data', 'model', 'sim', 'viz', 'ui', 'tour'].flatMap((f) => [`mission-game/js/${f}.js`, `mission-game-en/js/${f}.js`]),
+  ...['icons', 'data', 'model', 'sim', 'viz', 'ui', 'tour', 'online'].flatMap((f) => [`mission-game/js/${f}.js`, `mission-game-en/js/${f}.js`]),
 ];
 
 self.addEventListener('install', (e) => {

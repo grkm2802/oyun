@@ -4,9 +4,12 @@
    olaylar, ardından puanlama ve dersler.
    ========================================================================= */
 
-const rand = () => Math.random();
+/* Çevrimiçi oyunda herkesin aynı uçuşu görmesi için zar (rastgele sayı) ortak bir tohumla üretilir. */
+let SIM_RNG = Math.random;
+const rand = () => SIM_RNG();
 
-function createSim(R) {
+function createSim(R, seed) {
+  SIM_RNG = seed == null ? Math.random : seeded(seed >>> 0);
   const d = R.d;
   const instOn = {};
   for (const i of R.insts) instOn[i.id] = i.t;

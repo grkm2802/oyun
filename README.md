@@ -11,6 +11,24 @@ python -m http.server 8765
 
 Ardından tarayıcıda `http://localhost:8765` adresini aç. Sağ üstteki düğmelerle tema (Açık/Koyu) ve dil (TR/EN) değiştirilir.
 
+## Çevrimiçi takım oyunu
+2–4 arkadaş, kendi cihazlarından aynı odaya katılıp tek bir uzay aracını birlikte tasarlar ve uçurur. Oda kurucusu bir kod paylaşır (örn. `K7M-2QX`) ya da davet bağlantısı gönderir (`…/oyun/?oda=K7M2QX`). Roller katılma sırasına göre dağıtılır; her tasarım adımını sadece o adımın sorumlusu değiştirebilir, diğerleri canlı izler. Fırlatmadan önce herkes onay verir. Uçuşta olay çıkınca sorumlu oyuncu karar verir ve karar herkese uygulanır (uçuşlar ortak bir tohumla herkeste birebir aynı geçer).
+
+**Sohbet güvenliği:** sohbet sadece oda içinde; bağlantı, e-posta ve telefon numaraları otomatik gizlenir, Türkçe/İngilizce kötü sözler yıldızlanır, mesaj başına 200 karakter ve hız sınırı vardır. Her oyuncu bir başkasının mesajlarını gizleyebilir; kurucu sohbeti kapatabilir ve oyuncu çıkarabilir (çıkarılan oyuncu geri dönemez). Filtre basittir ve kusursuz değildir; asıl koruma odaların gizli koda dayanmasıdır.
+
+**Altyapı:** Google Firebase (Realtime Database + anonim giriş). Oyuncuların hesap açması gerekmez.
+
+### Firebase kurulumu (bir kez, ~5 dakika)
+1. https://console.firebase.google.com → **Proje ekle** → ad: `gorev-mimari` → Google Analytics'i kapatabilirsin → **Proje oluştur**.
+2. Sol menü **Build → Authentication → Başlayın** → **Sign-in method** sekmesi → **Anonymous** → **Etkinleştir** → Kaydet.
+3. **Authentication → Settings → Authorized domains** → **Alan adı ekle** → `grkm2802.github.io`.
+4. Sol menü **Build → Realtime Database → Veritabanı oluştur** → konum: **europe-west1 (Belçika)** → **Kilitli modda başlat**.
+5. Realtime Database → **Kurallar (Rules)** sekmesi → içeriği silip bu depodaki `database.rules.json` dosyasının tamamını yapıştır → **Yayınla**.
+6. Proje ayarları (sol üst dişli) → **Genel** → aşağıda **Uygulamalarınız** → web simgesi `</>` → takma ad `oyun` → **Uygulamayı kaydet** (Hosting kutusunu işaretleme) → gösterilen `firebaseConfig = { … }` nesnesini kopyala.
+7. Bu nesneyi `firebase-config.js` dosyasında `window.FIREBASE_CONFIG = { … };` olarak yaz (anahtarlar gizli değildir; güvenliği kurallar sağlar) ve yayınla.
+
+Firebase ayarı yokken sitede çevrimiçi panel "henüz kurulmadı" der. Yerel geliştirmede (localhost) Firebase ayarı yoksa ya da adres `?net=local` ile açılırsa, aynı tarayıcıdaki sekmeleri birbirine bağlayan **LocalNet** kullanılır: iki sekme açıp birinde oda kurup diğerinde katılarak test edilir.
+
 ## Siteyi yayınlama
 
 Yayına giden dosyalar `dist/` klasöründe toplanır. Klasörü yayın betiği oluşturur; betik site adresini de sayfalara yazar:

@@ -341,3 +341,35 @@ input:focus-visible, textarea:focus-visible { outline-offset: 1px; }
 .tour-prog { font-size: 13px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .tour-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+
+/* ---------- çevrimiçi oda ---------- */
+.online-panel { display: grid; gap: 4px; }
+.on-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.on-field { display: grid; gap: 4px; font-size: 14px; color: var(--muted); font-weight: 600; min-width: 0; }
+.on-field input, .on-form input { width: 100%; min-width: 0; background: var(--surface); border: 1px solid var(--line2); border-radius: 6px; padding: 9px 10px; color: var(--ink); font: inherit; }
+.on-or { padding-bottom: 10px; }
+.on-err { color: var(--bad); min-height: 1.4em; font-weight: 600; }
+.on-codebox { display: grid; gap: 10px; justify-items: start; }
+.on-code { font-size: clamp(40px, 9vw, 64px); font-weight: 700; letter-spacing: .08em; line-height: 1; font-variant-numeric: tabular-nums; }
+.on-lobby .choice img { width: 36px; height: 36px; flex-shrink: 0; }
+.on-roombtn { white-space: nowrap; }
+.on-note { padding: 10px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--sel-bg); font-weight: 600; }
+.view-only .card, .view-only .inst .seg button, .view-only .toggle { cursor: not-allowed; }
+.view-only .card:not(.sel), .view-only .inst:not(.on) { opacity: .75; }
+#on-chat-btn { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 90; box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
+.on-badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--cta); color: var(--cta-ink); font-size: 13px; }
+#on-chat { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); z-index: 91; width: min(360px, calc(100vw - 32px)); height: min(460px, calc(100vh - 120px)); display: grid; grid-template-rows: auto auto 1fr auto; background: var(--surface); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .35); overflow: hidden; }
+#on-chat header { display: flex; justify-content: space-between; align-items: center; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--line); }
+.on-safety { margin: 0; padding: 8px 14px; font-size: 13px; color: var(--muted); background: var(--surface2); }
+.on-msgs { overflow-y: auto; padding: 10px 14px; display: grid; gap: 8px; align-content: start; }
+.on-msg { padding: 6px 10px; border-radius: 8px; background: var(--surface2); max-width: 90%; }
+.on-msg.mine { justify-self: end; background: var(--sel-bg); }
+.on-msg-head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; font-size: 13px; }
+.on-msg-text { font-size: 15px; overflow-wrap: anywhere; }
+.on-mute { background: none; border: 0; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; }
+.on-form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 720px) {
+  .on-form-grid { grid-template-columns: 1fr; align-items: stretch; }
+  .on-or { padding: 0; text-align: center; }
+  #on-chat { height: min(420px, calc(100vh - 110px)); }
+}

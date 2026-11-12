@@ -30,6 +30,14 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
    - Hedefler `data-tour="..."` öznitelikleriyle bulunur (objectives, capability, instruments, resources, issues, lessons) ya da id/sınıflarla (`#steps`, `.learn`, `#timeline`, `.controls`, `#sim-stats`, `#sim-obj`, `.report-hero`, `.breakdown`). Bu işaretleri ui.js'ten silme; ekranı değiştirirsen turu da test et.
    - Kaydırma bilerek anında (`behavior: 'auto'`): yumuşak kaydırma bazı düzenlerde yarıda kesilip kartı ekran dışında bırakıyordu.
    - Test: `localStorage.removeItem('ma_tour')` + yenile; her adımda `.tour-card` ekranın içinde mi kontrol et (masaüstü ve 375px). Önizleme sekmesi arka plandaysa animasyon ilerlemez; uçuş turunu test ederken fırlatmayı `simStep` ile elle geçir.
+8. `js/online.js` — **çevrimiçi takım odası** (kullanıcı kararları: Firebase, serbest yazılı sohbet + koruma, ilk sürümde sadece takım odası). İki dil klasöründe de AYNI dosya (`TXT.tr`/`TXT.en`). Sadece `window.MA_SITE` varken çalışır (`loader.js` koyar; claude.ai Artifact'lerinde yok, orada dış bağlantılar kapalı).
+   - Altyapı adaptörleri: `FirebaseNet` (Firebase compat SDK 10.14.1, gstatic'ten tembel yüklenir; anonim giriş; Realtime DB) ve `LocalNet` (localStorage + BroadcastChannel; localhost'ta `window.FIREBASE_CONFIG` yoksa ya da `?net=local`). Ayar: kökteki `firebase-config.js` (`window.FIREBASE_CONFIG`; anahtarlar gizli değil). Kurallar: `database.rules.json` (kullanıcı Firebase konsolunda yayınlar; değiştirirsen kullanıcıya tekrar yapıştırmasını söyle).
+   - Veri: `rooms/{KOD}` → `meta` (hostUid, status lobby|design, scenario, difficulty, chatOff), `players/{uid}` (name, joined; onDisconnect ile silinir), `design`, `approvals/{uid}`, `flight` (id, seed, design, decisions/{k}: {idx}), `chat/{id}`, `kicked/{uid}`. Odayı tüm oyuncular tek `value` dinleyicisiyle izler (`onRoom`).
+   - Roller katılma sırasına göre `ROLE_SPLIT`; ui.js'teki `players()`, `onDesignChange`, `showEventModal` online.js'te sarılır (global fonksiyon olarak yeniden atanır). İzin: `GROUP_OWNER`/`PARTS[k].owner`; tıklamalar capture aşamasında kontrol edilir.
+   - **Ortak uçuş:** `createSim(R, seed)` + `SIM_RNG` (sim.js). Aynı tohum + aynı tasarım (flight.design) + aynı karar sırası = herkeste birebir aynı uçuş. sim.js'e `Math.random` kullanan yeni kod ekleme; her zaman `rand()` kullan, yoksa oyuncular arasında uçuş ayrışır.
+   - Karar: sorumlu oyuncu `flight/decisions/{k}`'ye yazar (setIfAbsent), herkes dinleyiciden uygular. Diğer oyuncularda seçenekler kapalı görünür.
+   - Sohbet koruması: `cleanText` (bağlantı/e-posta/telefon → [gizlendi], TR/EN kötü söz listesi), 200 karakter, 1,5 sn hız sınırı, susturma; kurucu: sohbeti kapat, oyuncu çıkar (`kicked`). Filtre basit; kullanıcıya bunu söyledik.
+   - Test (2026-11-12 yapıldı, hepsi geçti): iki sekmeyle LocalNet; oda kur/katıl, roller, izinler iki yönde, canlı eşitleme, onay, birlikte fırlatma, 8 ortak karar ve iki tarafta aynı puan, sohbet filtresi/hız sınırı/susturma, çıkarma ve geri dönememe, son oyuncu çıkınca odanın silinmesi, tek kişilik oyunun bozulmaması.
 - Yeni bir JS dosyası eklersen şu listelere de ekle: `loader.js`, `publish/*/index.html`, `sw.js` (`CORE`), `mission-game*/index.html`, Artifact `files` haritası.
 
 ## Görsel tasarım (kullanıcının isteği: sade, her yaşa uygun)
@@ -89,4 +97,6 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 
 ## Açık konular
 - Space Apps kurallarında yapay zekâ kullanımı / önceden hazırlanmış kod durumu doğrulanmadı; kullanıcıya teslim öncesi kontrol etmesi söylendi.
-- Takım modu aynı cihazda sırayla oynanıyor (ağ üzerinden çok oyunculu değil).
+- Takım modu iki türlü: aynı cihazda sırayla (eski) ve çevrimiçi oda (online.js). **Çevrimiçi mod, kullanıcı Firebase projesini kurup `firebase-config.js`'i doldurana kadar canlı sitede kapalı** (README'de adım adım rehber var). Kurulunca gerçek Firebase ile iki cihazdan test et (LocalNet testi Firebase kurallarını denemez).
+- Firebase'de oyuncusuz kalan eski odalar silinmez (sunucu yok); veri çok küçük. Gerekirse ileride temizlik eklenebilir.
+- Yarışma odası (birden çok takımın aynı görevi yarıştırdığı mod) kullanıcı tarafından sonraya bırakıldı.

@@ -62,6 +62,7 @@ function render() {
   else if (S.screen === 'report') app.innerHTML = renderReport();
   window.scrollTo(0, 0);
   if (window.onScreen) window.onScreen(S.screen);
+  document.dispatchEvent(new CustomEvent('ma:screen', { detail: S.screen }));
 }
 
 /* =========================================================================
@@ -162,6 +163,7 @@ function refreshDesign(which = { main: true, side: true }) {
   $('#steps').innerHTML = renderSteps(R);
   if (which.main) $('#main-col').innerHTML = renderStep(R);
   if (which.side) $('#side-col').innerHTML = renderDashboard(R);
+  document.dispatchEvent(new CustomEvent('ma:refresh', { detail: S.step }));
 }
 
 function stepStatus(R, step) {
