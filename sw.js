@@ -1,6 +1,7 @@
 /* Görev Mimarı — çevrimdışı çalışma (service worker).
    İlk ziyarette oyun dosyalarını önbelleğe alır; sonra internet olmasa da açılır.
-   Her istekte önbellekten hemen yanıt verir, arka planda yeni sürümü indirir (stale-while-revalidate).
+   Sitenin kendi dosyaları: önce internetten (her zaman en yeni sürüm), internet yoksa önbellekten.
+   Google Fonts: önce önbellekten (değişmezler), arka planda yenilenir.
    CACHE adı yayın betiği (scripts/build_site.py) tarafından her yayında değiştirilir. */
 const CACHE = 'ma-%BUILD_ID%';
 const CORE = [
@@ -11,7 +12,10 @@ const CORE = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  // cache: 'reload' → tarayıcının HTTP önbelleğindeki eski kopyayı değil, sunucudaki yenisini al
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -24,14 +28,32 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const allowed = url.origin === location.origin || url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
-  if (!allowed) return;
+  const own = url.origin === location.origin;
+  const fonts = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
+  if (!own && !fonts) return;
+
+  if (own) {
+    // önce ağ: yayınlanan güncelleme ilk açılışta görünür; çevrimdışıysa önbellek
+    e.respondWith(caches.open(CACHE).then(async (cache) => {
+      try {
+        const res = await fetch(req, { cache: 'no-cache' });
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      } catch {
+        return (await cache.match(req, { ignoreSearch: true }))
+          || (req.mode === 'navigate' ? cache.match('index.html') : Response.error());
+      }
+    }));
+    return;
+  }
+
+  // yazı tipleri: önce önbellek, arka planda yenile
   e.respondWith(caches.open(CACHE).then(async (cache) => {
-    const cached = await cache.match(req, { ignoreSearch: url.origin === location.origin });
+    const cached = await cache.match(req);
     const network = fetch(req).then((res) => {
       if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
       return res;
-    }).catch(() => cached || (req.mode === 'navigate' ? cache.match('index.html') : undefined));
+    }).catch(() => cached);
     return cached || network;
   }));
 });
