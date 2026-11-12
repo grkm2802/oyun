@@ -151,7 +151,7 @@ const SCENARIOS = {
     id: 'earth', name: 'Orman Yangını Gözcüsü', body: 'Earth', bodyTr: 'Dünya', icon: '🌍', level: 'Başlangıç', color: '#3b7be0',
     tagline: 'Yer gözlem uydusu',
     brief: 'Orman yangınları giderek sıklaşıyor. Yangınları erkenden fark eden ve ormanlarla tarım arazilerinin sağlığını izleyen bir uydu tasarla.',
-    budget: 200, opsPerYear: 4, sunAU: 1, distAU: 0.00002, launchClass: 'LEO', cruise: 0, cruiseRad: 0,
+    budget: 550, opsPerYear: 4, sunAU: 1, distAU: 0.00002, launchClass: 'LEO', cruise: 0, cruiseRad: 0,
     deadline: 36, window: 0, defaultMonths: 36,
     orbits: ['leo400', 'sso', 'ddsso', 'geo'],
     objectives: [
@@ -170,7 +170,7 @@ const SCENARIOS = {
     id: 'moon', name: 'Ay Buzu Avcısı', body: 'Moon', bodyTr: 'Ay', icon: '🌕', level: 'Orta', color: '#b9bcc4',
     tagline: 'Ay yörünge aracı',
     brief: 'Ay\'a dönecek astronotların suya ihtiyacı olacak. Kutuplardaki hiç güneş görmeyen kraterlerde saklanan buzu bul ve güvenli iniş yerleri için araziyi haritala.',
-    budget: 290, opsPerYear: 8, sunAU: 1, distAU: 0.00257, launchClass: 'MOON', cruise: 1, cruiseRad: 2,
+    budget: 460, opsPerYear: 8, sunAU: 1, distAU: 0.00257, launchClass: 'MOON', cruise: 1, cruiseRad: 2,
     deadline: 36, window: 0, defaultMonths: 24,
     orbits: ['llo50', 'lpo100', 'nrho'],
     objectives: [
@@ -189,7 +189,7 @@ const SCENARIOS = {
     id: 'mars', name: 'Kızıl Gezegen İklimi', body: 'Mars', bodyTr: 'Mars', icon: '🔴', level: 'İleri', color: '#c1502e',
     tagline: 'Mars iklim yörünge aracı',
     brief: 'Mars\'ın havasını ve iklimini anla: gezegen çapındaki toz fırtınaları, su döngüsü ve gömülü buz. Mars\'a fırlatma pencereleri sadece 26 ayda bir açılır — kaçırırsan beklersin.',
-    budget: 600, opsPerYear: 18, sunAU: 1.52, distAU: 1.5, launchClass: 'MARS', cruise: 7, cruiseRad: 2,
+    budget: 780, opsPerYear: 18, sunAU: 1.52, distAU: 1.5, launchClass: 'MARS', cruise: 7, cruiseRad: 2,
     deadline: 34, window: 26, defaultMonths: 36,
     orbits: ['mlo', 'melip', 'areo'],
     objectives: [
@@ -208,7 +208,7 @@ const SCENARIOS = {
     id: 'europa', name: 'Okyanus Dünyası Kâşifi', body: 'Europa', bodyTr: 'Europa', icon: '🔵', level: 'Uzman', color: '#d8c8a8',
     tagline: 'Jüpiter / Europa sondası',
     brief: 'Europa\'nın buz kabuğunun altında küresel bir okyanus var — Dünya dışında yaşam aramak için en iyi yerlerden biri. Jüpiter çok uzak, çok karanlık ve ölümcül radyasyonla dolu.',
-    budget: 1100, opsPerYear: 40, sunAU: 5.2, distAU: 5.2, launchClass: 'JUPITER', cruise: 66, cruiseRad: 3,
+    budget: 1250, opsPerYear: 40, sunAU: 5.2, distAU: 5.2, launchClass: 'JUPITER', cruise: 66, cruiseRad: 3,
     deadline: 60, window: 13, defaultMonths: 48,
     orbits: ['jflyby', 'eorbit', 'single'],
     objectives: [

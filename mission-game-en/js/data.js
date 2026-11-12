@@ -151,7 +151,7 @@ const SCENARIOS = {
     id: 'earth', name: 'Wildfire Watch', body: 'Earth', icon: '🌍', level: 'Beginner', color: '#3b7be0',
     tagline: 'Earth-observation satellite',
     brief: 'Wildfires are becoming more frequent. Design a satellite that spots fires early and tracks the health of forests and farmland.',
-    budget: 200, opsPerYear: 4, sunAU: 1, distAU: 0.00002, launchClass: 'LEO', cruise: 0, cruiseRad: 0,
+    budget: 550, opsPerYear: 4, sunAU: 1, distAU: 0.00002, launchClass: 'LEO', cruise: 0, cruiseRad: 0,
     deadline: 36, window: 0, defaultMonths: 36,
     orbits: ['leo400', 'sso', 'ddsso', 'geo'],
     objectives: [
@@ -170,7 +170,7 @@ const SCENARIOS = {
     id: 'moon', name: 'Lunar Ice Hunter', body: 'Moon', icon: '🌕', level: 'Intermediate', color: '#b9bcc4',
     tagline: 'Lunar orbiter',
     brief: 'Astronauts returning to the Moon will need water. Find ice hiding in permanently shadowed polar craters, and map the terrain for safe landing sites.',
-    budget: 290, opsPerYear: 8, sunAU: 1, distAU: 0.00257, launchClass: 'MOON', cruise: 1, cruiseRad: 2,
+    budget: 460, opsPerYear: 8, sunAU: 1, distAU: 0.00257, launchClass: 'MOON', cruise: 1, cruiseRad: 2,
     deadline: 36, window: 0, defaultMonths: 24,
     orbits: ['llo50', 'lpo100', 'nrho'],
     objectives: [
@@ -189,7 +189,7 @@ const SCENARIOS = {
     id: 'mars', name: 'Red Planet Climate', body: 'Mars', icon: '🔴', level: 'Advanced', color: '#c1502e',
     tagline: 'Mars climate orbiter',
     brief: 'Understand Mars\' weather and climate: planet-wide dust storms, the water cycle and buried ice. Launch windows to Mars open only every 26 months — miss yours and you wait.',
-    budget: 600, opsPerYear: 18, sunAU: 1.52, distAU: 1.5, launchClass: 'MARS', cruise: 7, cruiseRad: 2,
+    budget: 780, opsPerYear: 18, sunAU: 1.52, distAU: 1.5, launchClass: 'MARS', cruise: 7, cruiseRad: 2,
     deadline: 34, window: 26, defaultMonths: 36,
     orbits: ['mlo', 'melip', 'areo'],
     objectives: [
@@ -208,7 +208,7 @@ const SCENARIOS = {
     id: 'europa', name: 'Ocean World Explorer', body: 'Europa', icon: '🔵', level: 'Expert', color: '#d8c8a8',
     tagline: 'Jupiter / Europa probe',
     brief: 'Beneath Europa\'s ice lies a global ocean — one of the best places to look for life beyond Earth. Jupiter is far away, dim and bathed in deadly radiation.',
-    budget: 1100, opsPerYear: 40, sunAU: 5.2, distAU: 5.2, launchClass: 'JUPITER', cruise: 66, cruiseRad: 3,
+    budget: 1250, opsPerYear: 40, sunAU: 5.2, distAU: 5.2, launchClass: 'JUPITER', cruise: 66, cruiseRad: 3,
     deadline: 60, window: 13, defaultMonths: 48,
     orbits: ['jflyby', 'eorbit', 'single'],
     objectives: [

@@ -58,7 +58,7 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 - Metin kontrastı ≥ 4.5:1 (renk token'ları `css/style.css` başında).
 
 ## Denge (balance) notları
-- Bütçeler: Dünya $200M, Ay $290M, Mars $600M, Europa $1.100M (zorluk çarpanı uygulanır).
+- Bütçeler: Dünya $550M, Ay $460M, Mars $780M, Europa $1.250M (zorluk çarpanı uygulanır). 2026-11-13'te kullanıcı "bütçe çok az, alet alamıyoruz" dedi; eski bütçelerde (200/290/600/1100) Dünya ve Ay'da en sade tasarım bile sığmıyordu. Ölçüt: standart parçalarla 'işe yarayan tüm aletler temel' tasarımı normal zorlukta ~%15–20 yedekle sığmalı, 'hepsi gelişmiş' sığmamalı (Europa'da sınırda). Bütçeyi tekrar düşürme; zorlaştırmak gerekirse zor seviyeyi ayarla.
 - Puan en fazla 1000: bilim 600 + başarı 150 + verimlilik 150 + takım 100 + bonus (en fazla 100), toplam 1000'de kesilir.
 - Veri cezası `Math.pow(dataFraction, 0.7)`; uzatılmış görev en fazla 2 kez.
 - Sayı değiştirdikten sonra her senaryo için örnek bir tasarımı tarayıcı konsolunda ~100 kez `createSim/simStep` ile uçurup medyan puana bak; iyi bir tasarım 850–950, kötü tasarım belirgin şekilde düşük olmalı.
