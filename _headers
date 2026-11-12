@@ -1,0 +1,16 @@
+# Netlify ve Cloudflare Pages bu dosyayı okur (GitHub Pages okumaz; orada index.html içindeki CSP etiketi geçerlidir).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'
+
+/*.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/loader.js
+  Cache-Control: no-cache
+/assets/*
+  Cache-Control: public, max-age=604800

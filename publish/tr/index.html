@@ -1,0 +1,28 @@
+<title>Görev Mimarı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mission-game/css/style.css">
+<canvas id="stars" aria-hidden="true"></canvas>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* Dil yükleyici: seçilen dile göre Türkçe (mission-game/) ya da İngilizce (mission-game-en/) dosyalarını yükler.
+   Language loader: picks the Turkish or English build. Choice is remembered in localStorage ('ma_lang'). */
+(function () {
+  var DEFAULT_LANG = 'tr';
+  var lang = DEFAULT_LANG;
+  try { lang = localStorage.getItem('ma_lang') || DEFAULT_LANG; } catch (e) { lang = DEFAULT_LANG; }
+  if (lang !== 'tr' && lang !== 'en') lang = DEFAULT_LANG;
+  window.MA_LOADER = true;
+  document.documentElement.lang = lang;
+  document.title = lang === 'tr' ? 'Görev Mimarı' : 'Mission Architect';
+  var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
+  ['icons', 'data', 'model', 'sim', 'viz', 'ui'].forEach(function (f) {
+    var s = document.createElement('script');
+    s.src = base + 'js/' + f + '.js';
+    s.async = false;
+    document.body.appendChild(s);
+  });
+})();
+</script>

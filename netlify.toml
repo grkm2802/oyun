@@ -1,0 +1,7 @@
+# Netlify: depoyu bağlayınca bu ayarlar kullanılır. Netlify, sitenin adresini URL ortam değişkeniyle verir.
+[build]
+  command = "python3 scripts/build_site.py"
+  publish = "dist"
+
+[build.environment]
+  PYTHON_VERSION = "3.11"

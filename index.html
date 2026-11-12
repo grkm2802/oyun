@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr" data-default-lang="tr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Görev Mimarı · Mission Architect</title>
+  <meta name="description" content="Bir uzay görevi tasarla, fırlat ve uçur. Bütçe, kütle, güç, veri ve riski dengeleyen ücretsiz eğitsel oyun. Türkçe ve İngilizce. Design, launch and fly a complete space mission.">
+  <meta name="application-name" content="Görev Mimarı">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0f151c">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="canonical" href="%SITE_URL%">
+
+  <!-- Sosyal medya önizlemesi (Open Graph / Twitter) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Görev Mimarı">
+  <meta property="og:title" content="Görev Mimarı · Mission Architect">
+  <meta property="og:description" content="Uzay görevini tasarla, fırlat ve uçur. Her yaşa uygun eğitsel uzay görevi tasarım oyunu.">
+  <meta property="og:url" content="%SITE_URL%">
+  <meta property="og:image" content="%SITE_URL%assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Mars yörüngesinde bir uzay aracı ve Görev Mimarı yazısı">
+  <meta property="og:locale" content="tr_TR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Görev Mimarı · Mission Architect">
+  <meta name="twitter:description" content="Uzay görevini tasarla, fırlat ve uçur. Her yaşa uygun eğitsel oyun.">
+  <meta name="twitter:image" content="%SITE_URL%assets/og-image.png">
+
+  <!-- Simgeler ve uygulama bilgisi -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="mission-game/css/style.css">
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div id="app"></div>
+  <div id="modal-root"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <noscript>
+    <div style="max-width:640px;margin:40px auto;padding:0 16px;font-family:system-ui,sans-serif;line-height:1.5">
+      <h1>Görev Mimarı</h1>
+      <p>Bu oyun JavaScript ile çalışır. Lütfen tarayıcınızda JavaScript'i açın.</p>
+      <p lang="en">This game needs JavaScript. Please enable it in your browser.</p>
+    </div>
+  </noscript>
+  <script src="loader.js"></script>
+</body>
+</html>
