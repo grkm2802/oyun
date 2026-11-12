@@ -97,6 +97,7 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 
 ## Açık konular
 - Space Apps kurallarında yapay zekâ kullanımı / önceden hazırlanmış kod durumu doğrulanmadı; kullanıcıya teslim öncesi kontrol etmesi söylendi.
-- Takım modu iki türlü: aynı cihazda sırayla (eski) ve çevrimiçi oda (online.js). **Çevrimiçi mod, kullanıcı Firebase projesini kurup `firebase-config.js`'i doldurana kadar canlı sitede kapalı** (README'de adım adım rehber var). Kurulunca gerçek Firebase ile iki cihazdan test et (LocalNet testi Firebase kurallarını denemez).
+- Takım modu iki türlü: aynı cihazda sırayla (eski) ve çevrimiçi oda (online.js). **Çevrimiçi mod canlıda açık** (2026-11-13). Firebase projesi: `nasa-space-apps-1089d` (kullanıcının Google hesabı), Realtime Database us-central1, anonim giriş açık, yetkili alan adı grkm2802.github.io, `database.rules.json` yayınlı. Canlı sitede iki sekmeyle gerçek Firebase testi geçti (oda, roller, izin, eşitleme, sohbet, onay, ortak uçuş: iki tarafta aynı 3 karar ve aynı puan 907, oda kapatma). Firebase Auth kalıcılığı SESSION: her sekme ayrı oyuncu, yenilemede aynı oyuncu (bu yüzden çıkarılan biri yeni sekmeyle yeni kimlikle girebilir; bilinen sınırlama).
+- Firebase konsolunda işlem gerekirse: kullanıcı uygulamanın tarayıcı panelinde kendi Google girişini yapar, ayarları Claude tıklayabilir (anonim giriş ve alan adı böyle yapıldı). Analytics bilerek eklenmedi.
 - Firebase'de oyuncusuz kalan eski odalar silinmez (sunucu yok); veri çok küçük. Gerekirse ileride temizlik eklenebilir.
 - Yarışma odası (birden çok takımın aynı görevi yarıştırdığı mod) kullanıcı tarafından sonraya bırakıldı.
