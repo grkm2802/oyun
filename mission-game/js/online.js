@@ -113,6 +113,8 @@
         if (!ready) ready = (async () => {
           for (const m of ['app', 'auth', 'database']) await load(`https://www.gstatic.com/firebasejs/${V}/firebase-${m}-compat.js`);
           if (!firebase.apps.length) firebase.initializeApp(cfg);
+          // Her sekme ayrı oyuncu olsun (yenilemede aynı kalır): oturum sadece bu sekmede saklanır
+          await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
           const cred = await firebase.auth().signInAnonymously();
           uid = cred.user.uid; db = firebase.database();
           return uid;
