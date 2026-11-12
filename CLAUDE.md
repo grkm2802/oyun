@@ -58,10 +58,10 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 
 ## Yayınlama
 ### Site (GitHub Pages) — ana yayın
-- Depo: https://github.com/grkm2802/gorev-mimari (herkese açık), dal `main`.
-- Site: https://grkm2802.github.io/gorev-mimari/
+- Depo: https://github.com/grkm2802/oyun (herkese açık; yerel klasör adı gorev-mimari), dal `main`.
+- Site: https://grkm2802.github.io/oyun/
 - `main`'e her gönderim (push) `.github/workflows/deploy-pages.yml` ile siteyi kurar ve 1–2 dakikada yayınlar. Depo ayarı: Settings → Pages → Source: GitHub Actions.
-- **Kullanıcı kuralı:** değişiklikleri kendiliğinden gönderme. Kullanıcı "yayınla" deyince: commit + `git push`, sonra Actions çalışmasının bittiğini ve sitenin açıldığını kontrol et. `gh` kurulu değil; durumu https://github.com/grkm2802/gorev-mimari/actions sayfasından ya da siteyi açarak kontrol et.
+- **Kullanıcı kuralı:** değişiklikleri kendiliğinden gönderme. Kullanıcı "yayınla" deyince: commit + `git push`, sonra Actions çalışmasının bittiğini ve sitenin açıldığını kontrol et. `gh` kurulu değil; durumu https://github.com/grkm2802/oyun/actions sayfasından ya da siteyi açarak kontrol et.
 - Commit kimliği depoya yerel: `grkm2802 <grkm2802@users.noreply.github.com>` (gerçek e-posta kullanılmaz). Giriş: Git Credential Manager (tarayıcı); kullanıcının şifresini asla isteme/girme.
 - Sitede bir şey değiştiğinde claude.ai Artifact'lerini de güncelle (aşağıda).
 
