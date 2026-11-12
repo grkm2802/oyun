@@ -60,9 +60,15 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 ### Site (GitHub Pages) — ana yayın
 - Depo: https://github.com/grkm2802/oyun (herkese açık; yerel klasör adı gorev-mimari), dal `main`.
 - Site: https://grkm2802.github.io/oyun/
-- `main`'e her gönderim (push) `.github/workflows/deploy-pages.yml` ile siteyi kurar ve 1–2 dakikada yayınlar. Depo ayarı: Settings → Pages → Source: GitHub Actions.
-- **Kullanıcı kuralı:** değişiklikleri kendiliğinden gönderme. Kullanıcı "yayınla" deyince: commit + `git push`, sonra Actions çalışmasının bittiğini ve sitenin açıldığını kontrol et. `gh` kurulu değil; durumu https://github.com/grkm2802/oyun/actions sayfasından ya da siteyi açarak kontrol et.
-- Commit kimliği depoya yerel: `grkm2802 <grkm2802@users.noreply.github.com>` (gerçek e-posta kullanılmaz). Giriş: Git Credential Manager (tarayıcı); kullanıcının şifresini asla isteme/girme.
+- `main`'e her gönderim (push) `.github/workflows/deploy-pages.yml` ile siteyi kurar ve 1–2 dakikada yayınlar. Pages açık (kaynak: GitHub Actions; 2026-11-12'de `gh api` ile açıldı). İlk canlı kontrol: sayfa, tüm dosyalar, 404, service worker ve konsol temiz.
+- **Kullanıcı kuralı:** değişiklikleri kendiliğinden gönderme. Kullanıcı "yayınla" deyince:
+  1. commit + `git push`
+  2. `"/c/Program Files/GitHub CLI/gh.exe" run watch $(gh run list -R grkm2802/oyun -L 1 --json databaseId --jq '.[0].databaseId') -R grkm2802/oyun --exit-status` ile çalışmanın bitmesini bekle
+  3. siteyi aç, konsolda hata olmadığını kontrol et; Artifact'leri de güncelle.
+- GitHub CLI kurulu: `C:\Program Files\GitHub CLI\gh.exe` (Bash'te PATH'te olmayabilir, tam yolu kullan), `grkm2802` hesabıyla giriş yapılmış. Git girişi: Git Credential Manager. Kullanıcının şifresini/anahtarını asla isteme, okuma ya da yazdırma.
+- Kullanıcının hesabında yeni depo oluşturmak gibi işler otomatik izin denetiminde reddedilebilir; öyle olursa ne yapmak istediğini söyle ve kullanıcının onayını/elle yapmasını iste.
+- Actions uyarısı (zararsız): Node.js 20 kullanan action'lar Node 24'e zorlanıyor. Action sürümlerini yükseltmek istenirse resmi sürüm notlarından doğrula.
+- Commit kimliği depoya yerel: `grkm2802 <grkm2802@users.noreply.github.com>` (gerçek e-posta kullanılmaz).
 - Sitede bir şey değiştiğinde claude.ai Artifact'lerini de güncelle (aşağıda).
 
 ### claude.ai Artifact'leri (özel önizleme)
