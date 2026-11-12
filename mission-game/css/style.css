@@ -330,3 +330,14 @@ input:focus-visible, textarea:focus-visible { outline-offset: 1px; }
   .inst .seg { grid-column: 1 / -1; justify-self: start; }
   .step-head h2 { font-size: 24px; }
 }
+
+/* ---------- rehberli tur ---------- */
+.tour-catch { position: fixed; inset: 0; z-index: 300; }
+.tour-catch.dim { background: rgba(5, 10, 16, .72); }
+.tour-spot { position: fixed; z-index: 301; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(5, 10, 16, .72); outline: 3px solid var(--cta); outline-offset: 0; pointer-events: none; transition: top .25s, left .25s, width .25s, height .25s; }
+.tour-card { position: fixed; z-index: 302; width: min(400px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); border: 1px solid var(--line2); border-radius: 10px; padding: 18px; box-shadow: 0 16px 40px rgba(0, 0, 0, .35); display: grid; gap: 10px; }
+.tour-card h3 { font-size: 20px; }
+.tour-card p { font-size: 16px; }
+.tour-prog { font-size: 13px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.tour-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }

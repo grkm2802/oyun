@@ -61,6 +61,7 @@ function render() {
   else if (S.screen === 'sim') { app.innerHTML = renderSimShell(); startSimLoop(); }
   else if (S.screen === 'report') app.innerHTML = renderReport();
   window.scrollTo(0, 0);
+  if (window.onScreen) window.onScreen(S.screen);
 }
 
 /* =========================================================================
@@ -118,7 +119,7 @@ function renderTitle() {
 
     <div class="start-bar">
       <button class="btn primary big" data-act="start">🛠️ Tasarlamaya başla</button>
-      <button class="btn big" data-act="help">❓ Nasıl oynanır</button>
+      <button class="btn big" data-act="tour" data-v="main">❓ Nasıl oynanır</button>
       <button class="btn big" data-act="gloss">📖 Sözlük</button>
       <button class="btn big" data-act="loadcode">🔗 Paylaşılan tasarımı aç</button>
     </div>
@@ -238,7 +239,7 @@ function renderStep(R) {
         <div><h3 style="font-size:22px">${sc.name}</h3><p style="margin:6px 0 0">${sc.brief}</p>
         <div class="row wrap" style="margin-top:10px"><span class="chip">💰 Bütçe sınırı ${fmtMoney(R.budget)}</span><span class="chip">⏱️ ${sc.deadline} ayda fırlatmaya hazır ol</span>
         ${sc.window ? `<span class="chip">🪟 Her ${sc.window} ayda bir fırlatma penceresi</span>` : ''}${sc.cruise ? `<span class="chip">🛰️ Yolculuk ~${sc.cruise} ay</span>` : ''}</div></div></div></div>
-      <div class="panel pad"><h3 style="margin-bottom:10px">🎯 Bilimsel hedefler</h3>
+      <div class="panel pad" data-tour="objectives"><h3 style="margin-bottom:10px">🎯 Bilimsel hedefler</h3>
         <div class="choice-list">${sc.objectives.map((o) => `<div class="choice" style="cursor:default">
           <span style="font-size:20px">${o.primary ? '⭐' : '☆'}</span>
           <span class="grow"><b>${o.name}</b>
@@ -282,8 +283,8 @@ function renderStep(R) {
   if (st.id === 'payload') {
     const hints = DIFFICULTY[S.difficulty].hints;
     body = `${stepHeader(st, 'Uzay aracının neyi ölçeceğini seç.')}
-      <div class="panel pad"><h3 style="margin-bottom:10px">Hedef yeterliliği</h3>${objBars(R.objectives)}</div>
-      <div class="inst-list">
+      <div class="panel pad" data-tour="capability"><h3 style="margin-bottom:10px">Hedef yeterliliği</h3>${objBars(R.objectives)}</div>
+      <div class="inst-list" data-tour="instruments">
       ${Object.entries(INSTRUMENTS).map(([id, I]) => {
         const t = S.design.instruments[id] || 0;
         const uses = sc.objectives.filter((o) => o.needs[id]);
@@ -441,7 +442,7 @@ function renderDashboard(R) {
       <h3><span>Uzay aracı</span><span class="mono" style="text-transform:none">${kg(R.mass.wet)}</span></h3>
       <div class="craft-view">${craftSVG(R)}</div>
     </div>
-    <div class="panel pad dash">
+    <div class="panel pad dash" data-tour="resources">
       <h3><span>Kaynaklar</span></h3>
       ${meter('💰 Bütçe', R.cost.total, R.budget, `${fmtMoney(R.cost.total)} / ${fmtMoney(R.budget)}`)}
       ${meter('⚖️ Fırlatma kütlesi', R.mass.wet, R.mass.cap, R.mass.cap ? `${kg(R.mass.wet)} / ${kg(R.mass.cap)}` : 'roket ulaşamıyor')}
@@ -452,7 +453,7 @@ function renderDashboard(R) {
       ${meter('☢️ Radyasyon', R.rad.missionDose, R.rad.tol, `${Math.round(R.rad.missionDose)} / ${R.rad.tol} krad`, { warnAt: 0.8 })}
     </div>
     <div class="panel pad dash"><h3><span>Bilim potansiyeli</span><span class="mono">${pct(R.sciPotential)}</span></h3>${objBars(R.objectives)}</div>
-    <div class="panel pad dash"><h3><span>Sorunlar</span><span class="mono">${R.errors.length ? R.errors.length + ' ⛔' : ''} ${R.issues.filter((i) => i.level === 'warn').length} ⚠️</span></h3>${issueList(R.issues, false)}</div>`;
+    <div class="panel pad dash" data-tour="issues"><h3><span>Sorunlar</span><span class="mono">${R.errors.length ? R.errors.length + ' ⛔' : ''} ${R.issues.filter((i) => i.level === 'warn').length} ⚠️</span></h3>${issueList(R.issues, false)}</div>`;
 }
 
 /* =========================================================================
@@ -639,7 +640,7 @@ function renderReport() {
       <div class="panel pad"><h3 style="margin-bottom:10px">👥 Fırlatmadaki rol hedefleri</h3><div class="choice-list">
         ${Object.values(ROLES).map((r) => `<div class="goal"><span class="ri" style="color:${r.color}"></span><div class="grow"><b style="color:${r.color}">${r.name}</b><div class="muted" style="font-size:13px">${r.short}</div></div><span>${R.roleGoals[r.id] ? '✅' : '❌'}</span></div>`).join('')}</div></div>
     </div>
-    <div class="panel pad"><h3 style="margin-bottom:10px">🧠 Neden böyle oldu?</h3><div style="display:grid;gap:10px">
+    <div class="panel pad" data-tour="lessons"><h3 style="margin-bottom:10px">🧠 Neden böyle oldu?</h3><div style="display:grid;gap:10px">
       ${lessons.map((l) => `<div class="lesson ${l.type}"><b>${{ bad: '⛔', warn: '⚠️', good: '✅', info: '💡' }[l.type]} ${l.title}</b><p>${l.text}</p></div>`).join('')}
     </div></div>
     <div class="two">
@@ -675,6 +676,7 @@ function modal(html) {
 }
 function helpModal() {
   modal(`<h2>❓ Nasıl oynanır</h2>
+    <div><button class="btn primary" data-act="tour" data-v="main">Rehberli turu başlat</button></div>
     <div class="help-steps">
       <div><b>1 · Tanımla</b><br>Bir görev seç ve bilimsel hedeflerini oku. ⭐ Ana hedefler başarıyı belirler.</div>
       <div><b>2 · Tasarla</b><br>Yörünge, aletler, araç parçaları, güç, haberleşme ve roketi seç. Gösterge paneli anında güncellenir.</div>

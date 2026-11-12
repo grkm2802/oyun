@@ -14,7 +14,7 @@
   root.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı · Mission Architect' : 'Mission Architect · Görev Mimarı';
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
-  ['icons', 'data', 'model', 'sim', 'viz', 'ui'].forEach(function (f) {
+  ['icons', 'data', 'model', 'sim', 'viz', 'ui', 'tour'].forEach(function (f) {
     var s = document.createElement('script');
     s.src = base + 'js/' + f + '.js';
     s.async = false;

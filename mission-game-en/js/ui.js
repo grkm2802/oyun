@@ -61,6 +61,7 @@ function render() {
   else if (S.screen === 'sim') { app.innerHTML = renderSimShell(); startSimLoop(); }
   else if (S.screen === 'report') app.innerHTML = renderReport();
   window.scrollTo(0, 0);
+  if (window.onScreen) window.onScreen(S.screen);
 }
 
 /* =========================================================================
@@ -118,7 +119,7 @@ function renderTitle() {
 
     <div class="start-bar">
       <button class="btn primary big" data-act="start">🛠️ Start designing</button>
-      <button class="btn big" data-act="help">❓ How to play</button>
+      <button class="btn big" data-act="tour" data-v="main">❓ How to play</button>
       <button class="btn big" data-act="gloss">📖 Glossary</button>
       <button class="btn big" data-act="loadcode">🔗 Load a shared design</button>
     </div>
@@ -238,7 +239,7 @@ function renderStep(R) {
         <div><h3 style="font-size:22px">${sc.name}</h3><p style="margin:6px 0 0">${sc.brief}</p>
         <div class="row wrap" style="margin-top:10px"><span class="chip">💰 Budget cap ${fmtMoney(R.budget)}</span><span class="chip">⏱️ Ready to launch in ${sc.deadline} months</span>
         ${sc.window ? `<span class="chip">🪟 Launch window every ${sc.window} months</span>` : ''}${sc.cruise ? `<span class="chip">🛰️ Cruise ~${sc.cruise} months</span>` : ''}</div></div></div></div>
-      <div class="panel pad"><h3 style="margin-bottom:10px">🎯 Science objectives</h3>
+      <div class="panel pad" data-tour="objectives"><h3 style="margin-bottom:10px">🎯 Science objectives</h3>
         <div class="choice-list">${sc.objectives.map((o) => `<div class="choice" style="cursor:default">
           <span style="font-size:20px">${o.primary ? '⭐' : '☆'}</span>
           <span class="grow"><b>${o.name}</b>
@@ -282,8 +283,8 @@ function renderStep(R) {
   if (st.id === 'payload') {
     const hints = DIFFICULTY[S.difficulty].hints;
     body = `${stepHeader(st, 'Choose what your spacecraft will measure.')}
-      <div class="panel pad"><h3 style="margin-bottom:10px">Objective capability</h3>${objBars(R.objectives)}</div>
-      <div class="inst-list">
+      <div class="panel pad" data-tour="capability"><h3 style="margin-bottom:10px">Objective capability</h3>${objBars(R.objectives)}</div>
+      <div class="inst-list" data-tour="instruments">
       ${Object.entries(INSTRUMENTS).map(([id, I]) => {
         const t = S.design.instruments[id] || 0;
         const uses = sc.objectives.filter((o) => o.needs[id]);
@@ -441,7 +442,7 @@ function renderDashboard(R) {
       <h3><span>Spacecraft</span><span class="mono" style="text-transform:none">${kg(R.mass.wet)}</span></h3>
       <div class="craft-view">${craftSVG(R)}</div>
     </div>
-    <div class="panel pad dash">
+    <div class="panel pad dash" data-tour="resources">
       <h3><span>Resources</span></h3>
       ${meter('💰 Budget', R.cost.total, R.budget, `${fmtMoney(R.cost.total)} / ${fmtMoney(R.budget)}`)}
       ${meter('⚖️ Launch mass', R.mass.wet, R.mass.cap, R.mass.cap ? `${kg(R.mass.wet)} / ${kg(R.mass.cap)}` : 'rocket can\'t reach')}
@@ -452,7 +453,7 @@ function renderDashboard(R) {
       ${meter('☢️ Radiation', R.rad.missionDose, R.rad.tol, `${Math.round(R.rad.missionDose)} / ${R.rad.tol} krad`, { warnAt: 0.8 })}
     </div>
     <div class="panel pad dash"><h3><span>Science potential</span><span class="mono">${pct(R.sciPotential)}</span></h3>${objBars(R.objectives)}</div>
-    <div class="panel pad dash"><h3><span>Issues</span><span class="mono">${R.errors.length ? R.errors.length + ' ⛔' : ''} ${R.issues.filter((i) => i.level === 'warn').length} ⚠️</span></h3>${issueList(R.issues, false)}</div>`;
+    <div class="panel pad dash" data-tour="issues"><h3><span>Issues</span><span class="mono">${R.errors.length ? R.errors.length + ' ⛔' : ''} ${R.issues.filter((i) => i.level === 'warn').length} ⚠️</span></h3>${issueList(R.issues, false)}</div>`;
 }
 
 /* =========================================================================
@@ -639,7 +640,7 @@ function renderReport() {
       <div class="panel pad"><h3 style="margin-bottom:10px">👥 Role goals at launch</h3><div class="choice-list">
         ${Object.values(ROLES).map((r) => `<div class="goal"><span class="ri" style="color:${r.color}"></span><div class="grow"><b style="color:${r.color}">${r.name}</b><div class="muted" style="font-size:13px">${r.short}</div></div><span>${R.roleGoals[r.id] ? '✅' : '❌'}</span></div>`).join('')}</div></div>
     </div>
-    <div class="panel pad"><h3 style="margin-bottom:10px">🧠 Why did it go this way?</h3><div style="display:grid;gap:10px">
+    <div class="panel pad" data-tour="lessons"><h3 style="margin-bottom:10px">🧠 Why did it go this way?</h3><div style="display:grid;gap:10px">
       ${lessons.map((l) => `<div class="lesson ${l.type}"><b>${{ bad: '⛔', warn: '⚠️', good: '✅', info: '💡' }[l.type]} ${l.title}</b><p>${l.text}</p></div>`).join('')}
     </div></div>
     <div class="two">
@@ -675,6 +676,7 @@ function modal(html) {
 }
 function helpModal() {
   modal(`<h2>❓ How to play</h2>
+    <div><button class="btn primary" data-act="tour" data-v="main">Start the guided tour</button></div>
     <div class="help-steps">
       <div><b>1 · Define</b><br>Pick a mission and read its science objectives. ⭐ Primary objectives decide success.</div>
       <div><b>2 · Design</b><br>Choose orbit, instruments, spacecraft parts, power, comms and rocket. The dashboard updates live.</div>
