@@ -547,8 +547,18 @@
   document.addEventListener('submit', (e) => {
     if (!e.target.matches('[data-on-chat-form]')) return;
     e.preventDefault();
+    // Kutuyu göndermeden ÖNCE boşalt: Firebase mesajı anında geri bildirip paneli yeniden çiziyor,
+    // o sırada kutuda metin kalırsa "taslak" sanılıp yeni kutuya geri yazılıyordu.
     const inp = document.getElementById('on-chat-input');
-    sendChat(inp.value).then((ok) => { if (ok) { inp.value = ''; inp.focus(); } });
+    const text = inp.value;
+    if (!text.trim()) return;
+    inp.value = '';
+    sendChat(text).then((ok) => {
+      const cur = document.getElementById('on-chat-input');
+      if (!cur) return;
+      if (!ok && !cur.value) cur.value = text; // gönderilemediyse (hız sınırı vb.) metni geri koy
+      cur.focus();
+    }).catch(() => { const cur = document.getElementById('on-chat-input'); if (cur && !cur.value) cur.value = text; });
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target && (e.target.id === 'on-code' || e.target.id === 'on-name') && S.screen === 'title') {
