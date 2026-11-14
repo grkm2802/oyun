@@ -41,18 +41,20 @@
   const MODEL_BASE = SELF ? new URL('../../mission-game/models/', SELF).href : 'mission-game/models/';
   const GLTF_URL = SELF ? new URL('../../mission-game/vendor/GLTFLoader.js', SELF).href : 'mission-game/vendor/GLTFLoader.js';
   const MODELS = {};
-  let gltfState = 'idle'; const gltfWait = [];
-  function withGLTF(cb) {
-    if (gltfState === 'ok') return cb(true);
-    if (gltfState === 'fail') return cb(false);
-    gltfWait.push(cb);
-    if (gltfState === 'loading') return;
-    gltfState = 'loading';
-    const sc = document.createElement('script'); sc.src = GLTF_URL;
-    sc.onload = () => { gltfState = THREE.GLTFLoader ? 'ok' : 'fail'; gltfWait.splice(0).forEach((f) => f(gltfState === 'ok')); };
-    sc.onerror = () => { gltfState = 'fail'; gltfWait.splice(0).forEach((f) => f(false)); };
-    document.head.appendChild(sc);
+  // Three.js ek dosyaları (klasik script, THREE.X olarak eklenir): mission-game/vendor/{GLTFLoader,Sky}.js — tembel yüklenir
+  const VENDOR = {};
+  function withScript(file, global, cb) {
+    let e = VENDOR[file];
+    if (!e) {
+      e = VENDOR[file] = { state: 'loading', wait: [] };
+      const sc = document.createElement('script'); sc.src = new URL(file, GLTF_URL).href;
+      sc.onload = () => { e.state = THREE[global] ? 'ok' : 'fail'; e.wait.splice(0).forEach((f) => f(e.state === 'ok')); };
+      sc.onerror = () => { e.state = 'fail'; e.wait.splice(0).forEach((f) => f(false)); };
+      document.head.appendChild(sc);
+    }
+    if (e.state === 'loading') e.wait.push(cb); else cb(e.state === 'ok');
   }
+  const withGLTF = (cb) => withScript('GLTFLoader.js', 'GLTFLoader', cb);
   // Modeli bir kez yükler; her istekte sahneye eklenebilecek bir kopya (clone) verir.
   function loadModel(file, onLoad, onFail) {
     if (location.protocol === 'file:') { if (onFail) onFail(); return; }
@@ -711,6 +713,8 @@
     failed() { return state === 'fail'; },
     nasaTex,
     loadModel,
+    // atmosfer gökyüzü (Preetham, THREE.Sky)
+    loadSky: (cb) => withScript('Sky.js', 'Sky', cb),
     // uçuş ekranı da aynı gezinme araçlarını kullanır
     nav: { createNav, bindGestures, toolbar, makeStars, placeCamera, isFull, exitFull },
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde

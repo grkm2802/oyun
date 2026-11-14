@@ -228,6 +228,7 @@
       S.data.geometry.attributes.position.needsUpdate = true;
     }
     V.camera.aspect = w / h; V.camera.updateProjectionMatrix();
+    V.renderer.toneMappingExposure = 1;
     V.renderer.render(V.scene, V.camera);
     return true;
   }
@@ -295,6 +296,80 @@
     return new THREE.Mesh(new THREE.SphereGeometry(2000, 32, 16), mat);
   }
 
+  // Gök: varsa Preetham atmosfer modeli (THREE.Sky, mission-game/vendor/Sky.js), yoksa basit gradyan kubbe.
+  // update(t): t=0 yerde, t=1 uzayda (atmosfer incelir, gök kararır).
+  function makeSky(sunDir) {
+    if (THREE.Sky) {
+      const mesh = new THREE.Sky(); mesh.scale.setScalar(20000); mesh.renderOrder = -1;
+      // ACES ton eşleme göğü soluklaştırıyor: rengi biraz doygunlaştır
+      mesh.material.fragmentShader = mesh.material.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );',
+        'retColor = mix( vec3( dot( retColor, vec3( 0.299, 0.587, 0.114 ) ) ), retColor, 1.45 ); gl_FragColor = vec4( retColor, 1.0 );');
+      const u = mesh.material.uniforms;
+      u.turbidity.value = 1; u.rayleigh.value = 3; u.mieCoefficient.value = 0.0012; u.mieDirectionalG.value = 0.8;
+      u.sunPosition.value.copy(sunDir);
+      mesh.material.uniforms.uSpace = { value: 0 };
+      mesh.material.fragmentShader = 'uniform float uSpace;\n' + mesh.material.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );', 'retColor *= ( 1.0 - 0.97 * uSpace ); gl_FragColor = vec4( retColor, 1.0 );');
+      return { kind: 'preetham', mesh, update(t) { mesh.material.uniforms.uSpace.value = sstep(0.35, 1, t); u.rayleigh.value = 3 * Math.pow(1 - t, 1.6) + 0.015; u.turbidity.value = 1.4 * (1 - t) + 0.4; u.mieCoefficient.value = 0.002 * (1 - t) + 0.0004; } };
+    }
+    const mesh = skyDome(); mesh.renderOrder = -1;
+    return { kind: 'dome', mesh, update(t) { mesh.material.uniforms.space.value = t; } };
+  }
+
+  // Yakın zemin dokusu: Florida kıyısı gibi — koyu bitki örtüsü, bataklık gölleri, kumsal, beton alan ve yollar.
+  // Su olan yerler saydam (alphaTest) → altındaki parlak deniz görünür. Bir kez üretilir.
+  let GROUND_TEX = null;
+  function groundTexture() {
+    if (GROUND_TEX) return GROUND_TEX;
+    const N = 1024, SIZE = 3200; // doku pikseli ↔ dünya: x = -1600 + px·3,125 ; z = -1600 + py·3,125
+    const c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d'), img = g.createImageData(N, N), D = img.data;
+    const fbm = makeNoise(4242);
+    const coastZ = (x) => -230 + (fbm(x * 0.004, 3.1, 0.7, 4) - 0.5) * 220 + Math.sin(x * 0.0021) * 60;
+    for (let py = 0; py < N; py++) {
+      const z = -SIZE / 2 + (py + 0.5) * SIZE / N;
+      for (let px = 0; px < N; px++) {
+        const x = -SIZE / 2 + (px + 0.5) * SIZE / N, i = (py * N + px) * 4;
+        const cz = coastZ(x), dz = z - cz; // dz < 0 → deniz
+        if (dz < 0) { D[i + 3] = 0; continue; }
+        const n = fbm(x * 0.006, z * 0.006, 1.3, 4), m = fbm(x * 0.02 + 9, z * 0.02, 4.2, 3);
+        // bitki örtüsü: koyu yeşil – zeytin – kahverengimsi lekeler
+        let col = mix([30, 46, 24], [64, 76, 38], n);
+        col = mix(col, [86, 82, 52], sstep(0.55, 0.75, m) * 0.6);
+        // iç kesimde bataklık gölleri (koyu su)
+        const lagoon = fbm(x * 0.0035 + 20, z * 0.0035, 7.7, 4);
+        if (dz > 120 && lagoon > 0.62) col = mix(col, [22, 46, 52], sstep(0.62, 0.66, lagoon));
+        // kumsal ve kıyı çizgisi
+        if (dz < 14) col = mix([206, 196, 160], col, sstep(6, 14, dz));
+        // rampa çevresi beton/çakıl alan
+        const r = Math.hypot(x, z);
+        if (r < 40) col = mix([112, 110, 102], col, sstep(30, 40, r));
+        // yollar: rampadan sağa ve geriye (paletli taşıyıcı yolu)
+        if ((Math.abs(z - 4) < 4 && x > 0 && x < 1500) || (Math.abs(x - 6) < 3 && z > 0 && z < 1500)) col = [128, 126, 118];
+        D[i] = col[0]; D[i + 1] = col[1]; D[i + 2] = col[2]; D[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8;
+    GROUND_TEX = t;
+    return t;
+  }
+  // deniz için dalga normal haritası (tekrarlanır)
+  let WAVE_TEX = null;
+  function waveTexture() {
+    if (WAVE_TEX) return WAVE_TEX;
+    const N = 128, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d'), img = g.createImageData(N, N), D = img.data;
+    const hgt = (x, y) => Math.sin((x + y * 0.3) * 0.2) * 0.5 + Math.sin((x * 0.6 - y) * 0.33) * 0.3 + Math.sin((x * 1.7 + y * 1.3) * 0.18) * 0.2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const dx = hgt(x + 1, y) - hgt(x - 1, y), dy = hgt(x, y + 1) - hgt(x, y - 1);
+      const nx = -dx, ny = -dy, nz = 1, l = Math.hypot(nx, ny, nz), i = (y * N + x) * 4;
+      D[i] = (nx / l * 0.5 + 0.5) * 255; D[i + 1] = (ny / l * 0.5 + 0.5) * 255; D[i + 2] = (nz / l * 0.5 + 0.5) * 255; D[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    WAVE_TEX = new THREE.CanvasTexture(c);
+    return WAVE_TEX;
+  }
+
   // kodla çizilen yedek roket (model yüklenene kadar)
   function buildRocket(spec) {
     const g = new THREE.Group();
@@ -332,25 +407,57 @@
     const spec = ROCKETS[sim.R.d.launcher] || ROCKETS.medium;
     const T = fxTextures();
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0xbfd6ee, 500, 2600);
+    // iki katman: uzak katman (gök, yıldızlar, NASA Dünya küresi; büyük kamera menzili) + yakın katman (rampa, roket, duman)
+    const far = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xb8cde4, 300, 1700);
+    far.fog = new THREE.Fog(0xb8cde4, 1200, 14000);
     const cam = new THREE.PerspectiveCamera(40, 1.6, 0.1, 5000);
-    const sky = skyDome(); scene.add(sky);
-    const sunDir = new THREE.Vector3(-0.55, 0.42, -0.72).normalize();
+    // güneş: solda, ufkun ~23° üstünde; roketi yandan-önden aydınlatır
+    const sunDir = new THREE.Vector3(0.45, 0.78, 0.5).normalize(); // güneş kameranın sağ arkasında: önümüzde koyu mavi gök, roket önden aydınlık
+    const sky = makeSky(sunDir); far.add(sky.mesh);
     const sunSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sun, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
-    sunSp.scale.setScalar(240); scene.add(sunSp);
-    const sun = new THREE.DirectionalLight(0xfff1dc, 2.2); sun.position.set(-60, 50, 55); scene.add(sun); // roketin önünü aydınlatsın
-    const hemi = new THREE.HemisphereLight(0xc4dcff, 0x3a4a30, 0.65); scene.add(hemi);
+    sunSp.scale.setScalar(900); far.add(sunSp);
+    const sun = new THREE.DirectionalLight(0xfff0dc, 2.6); sun.position.copy(sunDir).multiplyScalar(100); scene.add(sun);
+    const hemi = new THREE.HemisphereLight(0xbcd4f2, 0x2c3324, 0.55); scene.add(hemi);
+    const farSun = new THREE.DirectionalLight(0xffffff, 2.2); farSun.position.copy(sunDir); far.add(farSun);
+    far.add(new THREE.AmbientLight(0x6f86a8, 0.12));
+    // yükseldikçe görünen Dünya: NASA Blue Marble dokulu dev küre, Florida rampanın altında
+    const RE = 2600;
+    const earthMat = new THREE.MeshStandardMaterial({ color: 0x223322, roughness: 0.9, metalness: 0 });
+    const earthUse = (tx) => { earthMat.map = tx; earthMat.color.set(0xffffff); earthMat.needsUpdate = true; };
+    const etx = Craft3D.nasaTex('Earth', earthUse); if (etx) earthUse(etx);
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(RE, 128, 64), earthMat);
+    // doku eşlemesi (SphereGeometry): enlem 28,5° K, boylam 80,6° B noktası +Y'ye gelsin
+    const lon = -80.6, lat = 28.5, eph = ((lon + 180) / 360) * Math.PI * 2, eth = ((90 - lat) / 180) * Math.PI;
+    const fl = new THREE.Vector3(-Math.cos(eph) * Math.sin(eth), Math.cos(eth), Math.sin(eph) * Math.sin(eth));
+    earth.quaternion.setFromUnitVectors(fl, new THREE.Vector3(0, 1, 0));
+    // kıyı (doğusu Atlantik) kameranın karşısına, -Z yönüne dönsün
+    earth.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI * 0.5));
+    earth.position.set(0, -RE - 2.5, 0); far.add(earth);
+    // ince atmosfer: kürenin kenarında mavi parıltı (yükseklerde görünür)
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(RE * 1.025, 96, 48), new THREE.ShaderMaterial({
+      side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+      uniforms: { k: { value: 0 } },
+      vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform float k; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(clamp(1.0 + dot(vN, vV), 0.0, 1.0), 3.0); gl_FragColor = vec4(vec3(0.35,0.6,1.0) * r * 1.5 * k, 1.0); }',
+    }));
+    atmo.position.copy(earth.position); far.add(atmo);
     // alev ışığı: rampayı ve dumanı turuncuya boyar
     const fireLight = new THREE.PointLight(0xffa040, 0, 120, 1.6); scene.add(fireLight);
-    // zemin: koyu kıyı bitki örtüsü, deniz, beton rampa, alev kanalı
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshLambertMaterial({ color: 0x1c2b13 }));
+    // yakın zemin: kodla üretilen kıyı dokusu (bitki örtüsü, bataklık, kumsal, yollar); su kısmı saydam → altındaki deniz görünür
+    const gtex = groundTexture();
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(1600, 96), new THREE.MeshLambertMaterial({ map: gtex, alphaTest: 0.5 })); // yuvarlak: köşesi ufukta çizgi yapmasın
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(6000, 2600), new THREE.MeshStandardMaterial({ color: 0x123150, roughness: 0.3, metalness: 0.25 }));
-    sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.03, -1700); scene.add(sea);
-    const concrete = new THREE.MeshStandardMaterial({ color: 0x4e5156, roughness: 0.95 });
+    const sea = new THREE.Mesh(new THREE.CircleGeometry(1600, 96), new THREE.MeshStandardMaterial({ color: 0x0e3352, roughness: 0.22, metalness: 0.35, normalMap: waveTexture(), normalScale: new THREE.Vector2(0.35, 0.35) }));
+    sea.material.normalMap.wrapS = sea.material.normalMap.wrapT = THREE.RepeatWrapping; sea.material.normalMap.repeat.set(40, 40);
+    sea.rotation.x = -Math.PI / 2; sea.position.y = -0.4; scene.add(sea);
+    const concrete = new THREE.MeshStandardMaterial({ color: 0x55575a, roughness: 0.95 });
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(9, 9.8, 0.8, 48), concrete); pad.position.y = 0.4; scene.add(pad);
-    const mound = new THREE.Mesh(new THREE.CylinderGeometry(14, 22, 2.2, 48), new THREE.MeshLambertMaterial({ color: 0x3e3c36 })); mound.position.y = -0.7; scene.add(mound);
+    const mound = new THREE.Mesh(new THREE.CylinderGeometry(12, 17, 2.2, 48), new THREE.MeshLambertMaterial({ color: 0x3b3830 })); mound.position.y = -0.7; scene.add(mound);
     const trench = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.9, 22), new THREE.MeshStandardMaterial({ color: 0x2c2d30, roughness: 1 })); trench.position.set(0, 0.4, 0); scene.add(trench);
+    // uzakta su kulesi ve birkaç bina (ölçek hissi)
+    const bldg = new THREE.MeshLambertMaterial({ color: 0xb9b6ad });
+    for (const [x, z, w, hh, d] of [[60, 40, 14, 8, 10], [75, 60, 8, 5, 8], [-70, 55, 10, 6, 14], [40, -60, 6, 22, 6]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), bldg); b.position.set(x, hh / 2, z); scene.add(b); }
     // kule: kafes direk + kollar
     const steel = new THREE.MeshStandardMaterial({ color: 0x8a3b2a, roughness: 0.7, metalness: 0.4 });
     const tower = new THREE.Group(), th = spec.h * 1.15, tw = 1.8;
@@ -382,16 +489,18 @@
     // yıldızlar (yükseldikçe görünür)
     const stars = Craft3D.nav.makeStars(1400, 1800, 11);
     stars.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = 0; o.material.fog = false; } });
-    scene.add(stars);
+    far.add(stars);
+    // atmosfer modeli henüz yüklenmediyse yükle; gelince gök değiştirilir (renderLaunch)
+    if (!THREE.Sky) Craft3D.loadSky(() => {});
     // patlama (arıza): turuncu ateş topu + koyu duman
     const boom = new THREE.Group();
     const bf = [], bd = [];
     const dTex = T.smoke;
     for (let i = 0; i < 8; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.fire, transparent: true, depthWrite: false, opacity: 0, fog: false })); f.userData.o = new THREE.Vector3(Math.cos(i * 2.4), Math.sin(i * 1.7) * 0.8, Math.sin(i * 2.4)).multiplyScalar(i ? 0.5 : 0); boom.add(f); bf.push(f); }
-    for (let i = 0; i < 12; i++) { const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, color: 0x2a2826, transparent: true, depthWrite: false, opacity: 0, fog: false })); d.userData.o = new THREE.Vector3(Math.cos(i * 1.9), Math.sin(i * 2.3) * 0.7 + 0.2, Math.sin(i * 1.9)); boom.add(d); bd.push(d); }
+    for (let i = 0; i < 18; i++) { const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, color: 0x6b645c, transparent: true, depthWrite: false, opacity: 0, fog: false })); d.userData.o = new THREE.Vector3(Math.cos(i * 1.9), Math.sin(i * 2.3) * 0.7 + 0.2, Math.sin(i * 1.9)); boom.add(d); bd.push(d); }
     boom.userData = { fire: bf, dsmoke: bd };
     scene.add(boom);
-    return { scene, cam, spec, rocket, core, glow, fire, smoke, fi: 0, si: 0, emitF: 0, emitS: 0, stars, sky, sunSp, sunDir, fireLight, boom, sim, lastPos: null };
+    return { ground, sea, earth, atmo, scene, far, cam, spec, rocket, core, glow, fire, smoke, fi: 0, si: 0, emitF: 0, emitS: 0, stars, sky, sunSp, sunDir, sun, hemi, fireLight, boom, sim, lastPos: null };
   }
 
   function emit(pool, idx, set) { const s = pool[idx % pool.length]; set(s, s.userData); s.visible = true; return idx + 1; }
@@ -403,11 +512,12 @@
     // fırlatmada gezinme araçları ve yörünge etiketleri yok
     if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
     const lb = wrap.querySelector('.viz-3d-labels'); if (lb) lb.hidden = true;
-    if (!V.L || V.L.sim !== sim) { if (V.L) disposeScene(V.L.scene); V.L = buildLaunch(sim); }
+    if (!V.L || V.L.sim !== sim) { if (V.L) { disposeScene(V.L.scene); disposeScene(V.L.far); } V.L = buildLaunch(sim); }
     if (!canvas.dataset.cleared) { const g = canvas.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.cleared = '1'; }
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return true;
     const L = V.L, sp = L.spec;
+    if (window.MA_DEBUG) window.MA_DEBUG.launch = L; // test için
     if (V.w !== w || V.h !== h) { V.w = w; V.h = h; V.renderer.setSize(w, h, false); }
     if (L.cam.aspect !== w / h) { L.cam.aspect = w / h; L.cam.updateProjectionMatrix(); }
     const p = ui.launchAnim || 0, now = performance.now() / 1000;
@@ -417,10 +527,20 @@
     const lift = Math.max(0, (failed ? 0.55 : p) - 0.1) / 0.9;
     const alt = lift * lift * 900; // yükseklik (sahne birimi)
     // gök: yükseldikçe uzay siyahı, yıldızlar çıkar
-    const t = Math.min(1, alt / 520);
-    L.sky.material.uniforms.space.value = t;
-    L.scene.fog.color.setRGB(0.75 * (1 - t) + 0.01, 0.84 * (1 - t) + 0.015, 0.93 * (1 - t) + 0.03);
-    L.stars.traverse((o) => { if (o.material) o.material.opacity = Math.max(0, (t - 0.4) / 0.6); });
+    const t = Math.min(1, alt / 600);
+    // atmosfer modeli yüklendiyse basit kubbeyi onunla değiştir
+    if (L.sky.kind === 'dome' && THREE.Sky) { L.far.remove(L.sky.mesh); L.sky = makeSky(L.sunDir); L.far.add(L.sky.mesh); }
+    L.sky.update(t);
+    L.atmo.material.uniforms.k.value = sstep(0.55, 1, t);
+    // yükseklerde yakın zemin (rampa çevresi) gizlenir; altta sadece NASA Dünya küresi kalır
+    const lowAlt = alt < 200; L.ground.visible = lowAlt; L.sea.visible = lowAlt;
+    // sis: yerde ufuk pusu, yükseldikçe incelir (Dünya küresi görünür hale gelir)
+    // sis rengi ton eşlemeden geçer: Preetham'ın düşük pozlamasında ufuk göğüyle eşleşsin diye güçlendir
+    const fogK = L.sky.kind === 'preetham' ? 2.5 : 1;
+    const fogC = new THREE.Color(0.66 * fogK, 0.76 * fogK, 0.88 * fogK).lerp(new THREE.Color(0.02, 0.03, 0.06), t);
+    L.scene.fog.color.copy(fogC); L.far.fog.color.copy(fogC);
+    L.far.fog.near = 1200 + t * 20000; L.far.fog.far = 14000 + t * 90000;
+    L.stars.traverse((o) => { if (o.material) o.material.opacity = Math.max(0, (t - 0.7) / 0.3); });
     // roket konumu ve yatışı (yörüngeye dönüş manevrası)
     const baseY = 0.8;
     L.rocket.position.set(alt * 0.05 * lift, baseY + alt, 0);
@@ -508,17 +628,29 @@
       const k = Math.min(1, (p - 0.55) * 2.2);
       L.boom.position.copy(L.rocket.position); L.boom.position.y += sp.h * 0.4;
       B.fire.forEach((f, i) => { const r = sp.h * (0.45 + k * 1.4) * (i ? 0.75 : 1); f.position.copy(f.userData.o).multiplyScalar(sp.h * 0.5 * k); f.scale.setScalar(r); f.material.opacity = Math.max(0, 1 - k * 1.3); });
-      B.dsmoke.forEach((d) => { d.position.copy(d.userData.o).multiplyScalar(sp.h * (0.3 + 0.9 * k)); d.scale.setScalar(sp.h * (0.4 + 1.3 * k)); d.material.opacity = Math.min(0.9, k * 2) * (1 - Math.max(0, k - 0.7)); });
+      B.dsmoke.forEach((d, i) => { d.position.copy(d.userData.o).multiplyScalar(sp.h * (0.3 + 1.1 * k)); d.scale.setScalar(sp.h * (0.6 + 1.6 * k) * (0.7 + (i % 3) * 0.2)); d.material.rotation = i * 1.3 + k; d.material.opacity = Math.min(0.55, k * 1.6) * (1 - Math.max(0, k - 0.75) * 2); });
     } else { B.fire.forEach((f) => { f.material.opacity = 0; }); B.dsmoke.forEach((d) => { d.material.opacity = 0; }); }
     // kamera: rampaya yakın, hafif aşağıdan; roketi izler, yükseldikçe geri çekilir
     const focus = new THREE.Vector3(L.rocket.position.x, L.rocket.position.y + sp.h * 0.42, 0);
     const back = sp.h * 2.6 + alt * 0.09;
-    L.cam.position.set(focus.x + back * 0.62, Math.max(1.6, focus.y - sp.h * 0.3 - alt * 0.04), focus.z + back);
+    // yükseldikçe kamera roketin üstüne çıkar ve aşağı bakar: altta Dünya ve ufkun eğrisi görünür
+    const up = sstep(120, 650, alt);
+    L.cam.position.set(focus.x + back * 0.62, Math.max(1.6, focus.y + (-sp.h * 0.3 - alt * 0.04) * (1 - up) + back * 0.6 * up), focus.z + back);
     L.cam.lookAt(focus);
     // gök kubbesi, güneş ve yıldızlar kamerayla gider (sonsuz uzakta gibi)
-    L.sky.position.copy(L.cam.position); L.stars.position.copy(L.cam.position);
-    L.sunSp.position.copy(L.cam.position).addScaledVector(L.sunDir, 1500);
-    V.renderer.render(L.scene, L.cam);
+    L.sky.mesh.position.copy(L.cam.position); L.stars.position.copy(L.cam.position);
+    L.sunSp.position.copy(L.cam.position).addScaledVector(L.sunDir, 15000);
+    const R = V.renderer, pre = L.sky.kind === 'preetham';
+    // Preetham göğü düşük pozlama ister; ışıkları buna göre güçlendir
+    R.toneMappingExposure = pre ? 0.34 : 1;
+    L.sun.intensity = pre ? 6.8 : 2.6; L.hemi.intensity = pre ? 1.5 : 0.55;
+    R.autoClear = false; R.clear();
+    L.cam.near = 40; L.cam.far = 220000; L.cam.updateProjectionMatrix();
+    R.render(L.far, L.cam);
+    R.clearDepth();
+    L.cam.near = 0.1; L.cam.far = 5000; L.cam.updateProjectionMatrix();
+    R.render(L.scene, L.cam);
+    R.autoClear = true;
     return true;
   }
   function disposeScene(sc) { sc.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }

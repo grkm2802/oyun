@@ -86,7 +86,7 @@ Site simgelerini yeniden üretmek için: `python scripts/make_assets.py` (Pillow
   - Jüpiter: JPL & Caltech, Voyager görüntüleri ([NASA 3D Resources](https://science.nasa.gov/3d-resources/jupiter/)).
   - Europa: USGS, JPL & Caltech, Voyager mozaiği ([NASA 3D Resources](https://science.nasa.gov/3d-resources/jupiter-europa/)).
   - Roket modelleri (`mission-game/models/`, NASA 3D Resources): Saturn V ([science.nasa.gov/3d-resources/saturn-v](https://science.nasa.gov/3d-resources/saturn-v/), kaynak: NASA/Michael D. Carbajal) ve Explorer Jupiter-C Rocket ([science.nasa.gov/3d-resources/explorer-jupiter-c-rocket](https://science.nasa.gov/3d-resources/explorer-jupiter-c-rocket/)); Jupiter-C'nin Draco sıkıştırması açıldı, başka değişiklik yok.
-- Model okuyucu: Three.js r147 `GLTFLoader` (MIT, `mission-game/vendor/GLTFLoader.js`).
+- Model okuyucu ve gökyüzü: Three.js r147 `GLTFLoader` ve `Sky` (Preetham atmosfer modeli) (MIT, `mission-game/vendor/`).
   - NASA görselleri [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) kapsamında kullanıldı; bu proje NASA tarafından onaylanmış ya da desteklenmiş değildir.
 - Yazı tipi: Atkinson Hyperlegible Next (Google Fonts, SIL Open Font License).
 - Projenin kendi kodu için henüz bir lisans seçilmedi (açık kaynak yapmak istersen örneğin MIT eklenebilir).
