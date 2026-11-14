@@ -129,6 +129,7 @@ function craftSVG(R) {
   const big = (id) => (on(id) && on(id).t === 2 ? 1.3 : 1);
 
   // güneş panelleri: bağlantı kolu + hücreli paneller
+  P.push(`<g data-part="power-${d.power}">`);
   const wing = { body: null, deploy3: [52, 34, 2], deploy10: [72, 42, 3], huge: [104, 52, 4] }[d.power];
   if (wing) {
     const [w, h, n] = wing;
@@ -151,12 +152,14 @@ function craftSVG(R) {
     P.push(`<g transform="translate(${ex},${ey}) rotate(${side * 30})"><rect x="-6" y="-16" width="12" height="32" fill="#4a4f57" stroke="#80868f"/>` +
       [-14, -7, 0, 7].map((yy) => `<rect x="-13" y="${yy}" width="26" height="2.2" fill="#6b717a"/>`).join('') + `</g>`);
   }
+  P.push('</g>');
   // manyetometre direği
-  if (on('magnetometer')) P.push(`<line x1="${x0 + bw}" y1="${y0 + 8}" x2="${x0 + bw + 95}" y2="${y0 - 30}" stroke="#c9ced6" stroke-width="1.6"/><rect x="${x0 + bw + 92}" y="${y0 - 35}" width="9" height="7" fill="#e6e8eb" stroke="#80868f"/>`);
+  if (on('magnetometer')) P.push(`<g data-part="i-magnetometer"><line x1="${x0 + bw}" y1="${y0 + 8}" x2="${x0 + bw + 95}" y2="${y0 - 30}" stroke="#c9ced6" stroke-width="1.6"/><rect x="${x0 + bw + 92}" y="${y0 - 35}" width="9" height="7" fill="#e6e8eb" stroke="#80868f"/></g>`);
   // radar sondası dipolleri
-  if (on('radar_sounder')) { const L2 = 120 * big('radar_sounder'); P.push(`<line x1="${x0 + 6}" y1="${yb}" x2="${x0 + 6 - L2 * 0.8}" y2="${yb + L2 * 0.35}" stroke="#d6dbe1" stroke-width="1.4"/><line x1="${x0 + bw - 6}" y1="${yb}" x2="${x0 + bw - 6 + L2 * 0.8}" y2="${yb + L2 * 0.35}" stroke="#d6dbe1" stroke-width="1.4"/>`); }
+  if (on('radar_sounder')) { const L2 = 120 * big('radar_sounder'); P.push(`<g data-part="i-radar_sounder"><line x1="${x0 + 6}" y1="${yb}" x2="${x0 + 6 - L2 * 0.8}" y2="${yb + L2 * 0.35}" stroke="#d6dbe1" stroke-width="1.4"/><line x1="${x0 + bw - 6}" y1="${yb}" x2="${x0 + bw - 6 + L2 * 0.8}" y2="${yb + L2 * 0.35}" stroke="#d6dbe1" stroke-width="1.4"/></g>`); }
 
   // anten (üst yüz)
+  P.push(`<g data-part="antenna-${d.antenna}">`);
   const ant = d.antenna;
   if (ant === 'lga') P.push(`<line x1="${cx + bw * 0.25}" y1="${y0}" x2="${cx + bw * 0.25}" y2="${y0 - 16}" stroke="#c9ced6" stroke-width="2"/><rect x="${cx + bw * 0.25 - 4}" y="${y0 - 22}" width="8" height="7" rx="2" fill="#e6e8eb"/>`);
   else if (ant === 'mga') P.push(`<path d="M ${cx - 7} ${y0} L ${cx - 12} ${y0 - 16} L ${cx + 12} ${y0 - 16} L ${cx + 7} ${y0} Z" fill="#d9dde2" stroke="#8a919a"/>`);
@@ -167,7 +170,9 @@ function craftSVG(R) {
     P.push(`<path d="M ${cx - ar * 0.7} ${y0 - 10 - dy * 0.75} L ${cx} ${y0 - 10 - ar * 0.55} L ${cx + ar * 0.7} ${y0 - 10 - dy * 0.75}" fill="none" stroke="#a7aeb6" stroke-width="1"/><rect x="${cx - 3}" y="${y0 - 14 - ar * 0.55}" width="6" height="6" fill="#d0d4d9"/>`);
   }
 
+  P.push('</g>');
   // gövde: altın ısı yalıtım folyosu (MLI) + kırışıklar
+  P.push(`<g data-part="bus">`);
   P.push(`<rect x="${x0}" y="${y0}" width="${bw}" height="${bh}" fill="#c99a3b"/>`);
   P.push(`<rect x="${x0}" y="${y0}" width="${bw * 0.42}" height="${bh}" fill="#d9ae55" opacity=".7"/>`);
   const rr = seeded(Math.round(bw));
@@ -178,18 +183,21 @@ function craftSVG(R) {
   // yıldız izleyici
   if (d.adcs !== 'mtq') P.push(`<rect x="${x0 + bw - 14}" y="${y0 + 6}" width="9" height="9" fill="#2a2f36"/><circle cx="${x0 + bw - 9.5}" cy="${y0 + 10.5}" r="2.5" fill="#5d7ea8"/>`);
 
+  P.push('</g>');
   // itki: nozul
+  P.push(`<g data-part="prop-${d.propulsion}">`);
   const pr = d.propulsion;
   if (pr !== 'none') {
     const nw = { cold: 7, mono: 11, biprop: 20, ion: 18 }[pr], nh = { cold: 6, mono: 10, biprop: 22, ion: 6 }[pr];
     if (pr === 'ion') P.push(`<rect x="${cx - nw / 2}" y="${yb}" width="${nw}" height="${nh}" fill="#3b4149"/><ellipse cx="${cx}" cy="${yb + nh}" rx="${nw / 2}" ry="2.5" fill="#6aa9ff" opacity=".8"/>`);
     else P.push(`<path d="M ${cx - nw * 0.25} ${yb} L ${cx - nw / 2} ${yb + nh} L ${cx + nw / 2} ${yb + nh} L ${cx + nw * 0.25} ${yb} Z" fill="#5a6069" stroke="#9aa3ad"/>`);
   }
+  P.push('</g>');
   // alt yüz aletleri (yer gözlem yüzü)
-  if (on('sar')) { const sw = bw * 1.35 * big('sar'); P.push(`<rect x="${cx - sw / 2}" y="${yb + 26}" width="${sw}" height="8" fill="#5a6370" stroke="#9aa3ad"/><line x1="${cx - sw / 4}" y1="${yb}" x2="${cx - sw / 4}" y2="${yb + 26}" stroke="#9aa3ad"/><line x1="${cx + sw / 4}" y1="${yb}" x2="${cx + sw / 4}" y2="${yb + 26}" stroke="#9aa3ad"/>`); }
+  if (on('sar')) { const sw = bw * 1.35 * big('sar'); P.push(`<g data-part="i-sar"><rect x="${cx - sw / 2}" y="${yb + 26}" width="${sw}" height="8" fill="#5a6370" stroke="#9aa3ad"/><line x1="${cx - sw / 4}" y1="${yb}" x2="${cx - sw / 4}" y2="${yb + 26}" stroke="#9aa3ad"/><line x1="${cx + sw / 4}" y1="${yb}" x2="${cx + sw / 4}" y2="${yb + 26}" stroke="#9aa3ad"/></g>`); }
   const slots = ['camera', 'spectrometer', 'multispec', 'thermal', 'altimeter', 'atmo', 'neutron', 'particles'].filter(on);
   const used = slots.slice(0, 6);
-  used.forEach((id, i) => {
+  used.forEach((id, i) => { P.push(`<g data-part="i-${id}">`);
     const sx = x0 + 8 + ((bw - 16) * (i + 0.5)) / used.length;
     const k = big(id);
     if (id === 'camera') P.push(`<rect x="${sx - 6 * k}" y="${yb}" width="${12 * k}" height="${16 * k}" fill="#e9ebee" stroke="#8a919a"/><rect x="${sx - 6 * k}" y="${yb + 16 * k - 3}" width="${12 * k}" height="3" fill="#1d2228"/>`);
@@ -198,6 +206,7 @@ function craftSVG(R) {
     else if (id === 'altimeter') P.push(`<rect x="${sx - 4 * k}" y="${yb}" width="${8 * k}" height="${9 * k}" fill="#cfd4d9" stroke="#8a919a"/><circle cx="${sx}" cy="${yb + 9 * k}" r="${3 * k}" fill="#1d2228"/>`);
     else if (id === 'atmo') P.push(`<rect x="${sx - 6 * k}" y="${yb}" width="${12 * k}" height="${8 * k}" fill="#d7dbe0" stroke="#8a919a"/><circle cx="${sx}" cy="${yb + 8 * k}" r="${4 * k}" fill="#7a838e"/>`);
     else P.push(`<rect x="${sx - 4 * k}" y="${yb}" width="${8 * k}" height="${6 * k}" fill="#bfc5cc" stroke="#8a919a"/>`);
+    P.push('</g>');
   });
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${VIZ_TXT.craftLabel}">${P.join('')}</svg>`;
 }

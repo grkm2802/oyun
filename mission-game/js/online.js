@@ -192,6 +192,7 @@
   const GROUP_OWNER = { orbit: 'MM', months: 'MM', aerobrake: 'MM', launcher: 'MM', instruments: 'SL' };
   const ownerOfGroup = (k) => GROUP_OWNER[k] || (PARTS[k] && PARTS[k].owner) || 'MM';
   const canEdit = (k) => myRoles().includes(ownerOfGroup(k));
+  O.canEdit = canEdit;
   const roleName = (r) => (ROLES[r] ? ROLES[r].name : r);
 
   /* ------------------------------------------------------------------ */
@@ -354,14 +355,15 @@
     const main = document.getElementById('main-col');
     if (!main || !st) return;
     const mine = myRoles();
-    const viewOnly = st.owner !== 'ALL' && !mine.includes(st.owner);
+    const owners = st.owners || [st.owner];
+    const viewOnly = st.owner !== 'ALL' && !owners.some((r) => mine.includes(r));
     main.classList.toggle('view-only', viewOnly);
     main.querySelector('.on-note')?.remove();
     if (viewOnly) {
-      const owner = ownerOf(st.owner);
+      const owner = ownerOf(owners[0]);
       const note = document.createElement('div');
       note.className = 'on-note'; note.setAttribute('role', 'note');
-      note.textContent = T.viewOnly(roleName(st.owner), owner ? owner.name : '');
+      note.textContent = T.viewOnly(owners.map(roleName).join(' / '), [...new Set(owners.map((r) => (ownerOf(r) || {}).name).filter(Boolean))].join(' / '));
       main.insertBefore(note, main.children[1] || null);
     }
     document.querySelectorAll('[data-act="months"], [data-act="aero"]').forEach((i) => { i.disabled = !canEdit('months'); });

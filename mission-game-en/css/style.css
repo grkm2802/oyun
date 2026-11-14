@@ -373,3 +373,99 @@ input:focus-visible, textarea:focus-visible { outline-offset: 1px; }
   .on-or { padding: 0; text-align: center; }
   #on-chat { height: min(420px, calc(100vh - 110px)); }
 }
+
+/* =====================================================================
+   ATÖLYE (tek ekran, 4 adım) — workshop.js
+   ===================================================================== */
+.ws { max-width: 1280px; margin: 0 auto; padding-block: 14px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
+.ws-gauges { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.gauge { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 9px; display: grid; gap: 4px; min-width: 0; transition: border-color .3s; }
+.gauge[data-st="warn"] { border-color: var(--warn); }
+.gauge[data-st="bad"] { border-color: var(--bad); }
+.g-top { display: flex; justify-content: space-between; align-items: center; }
+.g-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.g-nums { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.g-val { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g-cap { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g-bar { height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.g-bar i { display: block; height: 100%; width: 2%; border-radius: 999px; background: var(--good); transition: width .6s cubic-bezier(.2, .8, .2, 1), background-color .3s; }
+.gauge[data-st="warn"] .g-bar i { background: var(--warn); }
+.gauge[data-st="bad"] .g-bar i { background: var(--bad); }
+.g-sub { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge.shake { animation: ws-shake .45s ease-in-out; }
+
+.ws-stage { position: relative; height: clamp(220px, 36vh, 380px); border-radius: 12px; overflow: hidden; background: var(--space); isolation: isolate; }
+.ws-stars { position: absolute; inset: -40%; z-index: 0; opacity: .8;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #ffffffcc 99%, transparent), radial-gradient(1px 1px at 33% 72%, #ffffff99 99%, transparent),
+    radial-gradient(1.5px 1.5px at 58% 34%, #ffffffdd 99%, transparent), radial-gradient(1px 1px at 81% 62%, #ffffff88 99%, transparent),
+    radial-gradient(1px 1px at 69% 11%, #ffffffaa 99%, transparent), radial-gradient(1.5px 1.5px at 24% 48%, #ffffffbb 99%, transparent),
+    radial-gradient(1px 1px at 92% 28%, #ffffff99 99%, transparent), radial-gradient(1px 1px at 47% 88%, #ffffff77 99%, transparent);
+  background-size: 260px 260px; animation: ws-drift 90s linear infinite; }
+.ws-planet { position: absolute; right: -4%; bottom: -34%; width: min(46%, 360px); aspect-ratio: 1; z-index: 1; animation: ws-planet-in 1s cubic-bezier(.2, .8, .2, 1) both; pointer-events: none; }
+.ws-craft { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; animation: ws-float 5.5s ease-in-out infinite; }
+.ws-craft svg { width: min(86%, 600px); height: auto; max-height: 94%; overflow: visible; }
+.ws-craft .part-new { animation: ws-pop .55s cubic-bezier(.2, 1.5, .4, 1) both; transform-box: fill-box; transform-origin: center; }
+.ws-info { position: absolute; left: 14px; top: 12px; z-index: 3; display: grid; gap: 2px; color: #eef2f6; background: rgba(11, 17, 24, .65); padding: 6px 12px; border-radius: 8px; font-size: 15px; }
+.ws-info span { color: #b9c4cf; font-size: 13px; }
+.ws-flags { position: absolute; right: 12px; top: 12px; z-index: 3; }
+.ws-flag { border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 14px; background: var(--bad); color: #fff; animation: ws-pop .4s both; }
+
+.ws-tabs { position: relative; display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.ws-tab { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 14px; background: none; border: 0; color: var(--muted); font-weight: 700; font-size: 17px; border-radius: 8px 8px 0 0; transition: color .2s, background-color .2s; white-space: nowrap; }
+.ws-tab:hover { color: var(--ink); background: var(--surface2); }
+.ws-tab .num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--line2); font-size: 15px; transition: background-color .3s, border-color .3s, color .3s, transform .3s; }
+.ws-tab.sel { color: var(--ink); }
+.ws-tab.sel .num { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: scale(1.08); }
+.ws-tab.ok .num { border-color: var(--good); }
+.ws-tab .mk { font-size: 14px; font-weight: 700; }
+.ws-tab.ok .mk { color: var(--good); } .ws-tab.warn .mk { color: var(--warn); } .ws-tab.err .mk { color: var(--bad); }
+.ws-ind { position: absolute; bottom: -1px; left: 0; height: 3px; width: 0; border-radius: 3px; background: var(--accent); transition: left .35s cubic-bezier(.2, .8, .2, 1), width .35s cubic-bezier(.2, .8, .2, 1); }
+
+.ws-panel { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.ws-panel.ws-enter > * { animation: ws-rise .4s cubic-bezier(.2, .8, .2, 1) both; }
+.ws-panel.ws-enter > *:nth-child(2) { animation-delay: .04s; } .ws-panel.ws-enter > *:nth-child(3) { animation-delay: .08s; }
+.ws-panel.ws-enter > *:nth-child(4) { animation-delay: .12s; } .ws-panel.ws-enter > *:nth-child(5) { animation-delay: .16s; }
+.ws-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ws-col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.ws-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.ws-panel .card { transition: transform .18s cubic-bezier(.2, .8, .2, 1), border-color .2s, background-color .2s, box-shadow .2s; }
+.ws-panel .card:hover:not(:disabled) { transform: translateY(-3px); }
+.ws-panel .card:active:not(:disabled) { transform: translateY(0) scale(.98); }
+.ws-panel .card.sel .check { animation: ws-pop .35s both; }
+.ws-ic { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: var(--surface2); border: 1px solid var(--line); }
+.ws-ic .svg-ic { width: 24px; height: 24px; color: var(--accent); }
+.ws-tog { margin-top: 4px; font-weight: 700; font-size: 15px; color: var(--accent); }
+.card.sel .ws-tog { color: var(--good); }
+.ws-objs { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.ws-objs li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.ws-small { font-size: 14px; }
+.ws-dur button { padding: 8px 14px; }
+.ws-auto .role-chips { margin-top: 8px; }
+.ws-launchbox { display: grid; gap: 10px; justify-items: start; }
+.ws-launchbox .btn.go:not(:disabled) { animation: ws-ready 2.4s ease-in-out infinite; }
+
+@keyframes ws-float { 50% { transform: translateY(-9px); } }
+@keyframes ws-drift { to { transform: translate(-12%, 8%); } }
+@keyframes ws-pop { from { opacity: 0; transform: scale(.35); } }
+@keyframes ws-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes ws-planet-in { from { opacity: 0; transform: translate(10%, 10%); } }
+@keyframes ws-shake { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@keyframes ws-ready { 50% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) {
+  .ws-stars, .ws-craft, .ws-planet, .ws-launchbox .btn.go, .ws-craft .part-new, .gauge.shake, .ws-panel.ws-enter > * { animation: none !important; }
+  .ws-ind, .g-bar i { transition: none; }
+}
+@media (max-width: 1000px) {
+  .ws-gauges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ws-grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .ws { gap: 10px; }
+  .ws-gauges { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 4px; }
+  .ws-gauges .gauge { flex: 0 0 46%; scroll-snap-align: start; }
+  .g-sub { display: none; }
+  .ws-stage { height: 200px; }
+  .ws-tab { flex: 1 0 auto; padding: 10px 8px; font-size: 15px; gap: 6px; }
+  .ws-tab .lbl { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; }
+}
