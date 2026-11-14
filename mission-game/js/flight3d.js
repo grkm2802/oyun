@@ -67,16 +67,11 @@
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sg.setAttribute('color', new THREE.BufferAttribute(colr, 3));
     scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true })));
     const world = new THREE.Group(); scene.add(world);
-    const v = { renderer, cv, scene, camera, world, key: null, yaw: 0.35, pitch: 0.2, drag: null, idleAt: 0, t: 0 };
-    cv.addEventListener('pointerdown', (e) => { v.drag = { x: e.clientX, y: e.clientY, yaw: v.yaw, pitch: v.pitch }; try { cv.setPointerCapture(e.pointerId); } catch (_) {} cv.classList.add('grab'); });
-    cv.addEventListener('pointermove', (e) => {
-      if (!v.drag) return;
-      v.yaw = v.drag.yaw + (e.clientX - v.drag.x) * 0.008;
-      v.pitch = Math.max(-1.2, Math.min(1.2, v.drag.pitch + (e.clientY - v.drag.y) * 0.005));
-      v.idleAt = performance.now();
-    });
-    const up = () => { v.drag = null; v.idleAt = performance.now(); cv.classList.remove('grab'); };
-    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    const N = Craft3D.nav;
+    const nav = N.createNav(0.35, 0.2, { pMin: -1.2, pMax: 1.2 });
+    const v = { renderer, cv, scene, camera, world, key: null, nav, wrap: null, t: 0 };
+    // çizim döngüsü ui.js'te (her karede drawFlight), ayrıca tetiklemeye gerek yok
+    N.bindGestures(cv, nav, () => v.wrap, () => {});
     return v;
   }
 
@@ -122,12 +117,13 @@
       S.b = b; S.fc = fc;
       S.extent = Math.max(1.65, S.a * (1 + S.e) + 0.2, S.jup ? S.moonR + 0.4 : 0);
     }
+    S.axes = Craft3D.nav.makeAxes(S.extent * 0.95); W.add(S.axes);
     // uzay aracı: atölyedeki 3B model, görünür olsun diye büyütülmüş
     S.craft = new THREE.Group();
     const model = Craft3D.build(R);
     const sph = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
     model.position.sub(sph.center);
-    const size = Math.max(0.16, S.extent * 0.06);
+    const size = Math.max(0.26, S.extent * 0.1);
     model.scale.setScalar(size / sph.radius);
     S.craft.add(model);
     S.plane.add(S.craft);
@@ -170,8 +166,13 @@
     const wrap = canvas.parentElement;
     if (!wrap) return false;
     if (!V) V = createView();
-    if (V.cv.parentElement !== wrap) { wrap.appendChild(V.cv); V.key = null; }
-    V.cv.hidden = false;
+    if (V.cv.parentElement !== wrap) {
+      wrap.appendChild(V.cv); V.key = null; V.wrap = wrap;
+      V.bar = Craft3D.nav.toolbar(wrap, () => V.wrap, V.nav, () => {}, 'viz-tools');
+    }
+    V.cv.hidden = false; if (V.bar) V.bar.hidden = false;
+    // karar penceresi tam ekranın dışında kalır: karar gerekince tam ekrandan çık
+    if (sim.pending && Craft3D.nav.isFull(wrap)) Craft3D.nav.exitFull(wrap);
     const key = sim; // her yeni uçuşta sahne yeniden kurulur
     if (V.key !== key || !V.S) { if (V.S && V.S.data) { V.scene.remove(V.S.data); V.S.data.geometry.dispose(); } build(sim); V.key = key; }
     labels(wrap, sim.sc);
@@ -193,8 +194,8 @@
     // kamera: sürükleyince döner; kendiliğinden dönmez (gece tarafına kaymasın, gezegen zaten dönüyor)
     const fov = (V.camera.fov * Math.PI) / 180;
     const fit = S.extent / Math.sin(Math.atan(Math.tan(fov / 2) * Math.min(1, V.camera.aspect))) * 1.05;
-    V.camera.position.set(Math.sin(V.yaw) * Math.cos(V.pitch) * fit, Math.sin(V.pitch) * fit, Math.cos(V.yaw) * Math.cos(V.pitch) * fit);
-    V.camera.lookAt(0, 0, 0);
+    Craft3D.nav.placeCamera(V.camera, new THREE.Vector3(0, 0, 0), V.nav, fit);
+    S.axes.visible = V.nav.axes;
     // veri akışı: aracın dünya konumundan Dünya yönüne; gezegen arada ise yok
     const wp = S.craft.getWorldPosition(new THREE.Vector3());
     const dir = S.earthDir;
@@ -216,7 +217,7 @@
 
   function hide3D(canvas) {
     if (!V) return;
-    V.cv.hidden = true;
+    V.cv.hidden = true; if (V.bar) V.bar.hidden = true;
     const wrap = canvas.parentElement, lb = wrap && wrap.querySelector('.viz-3d-labels');
     if (lb) lb.hidden = true;
     delete canvas.dataset.cleared;

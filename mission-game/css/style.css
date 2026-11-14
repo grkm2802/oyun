@@ -506,3 +506,27 @@ input:focus-visible, textarea:focus-visible { outline-offset: 1px; }
 .viz-wrap canvas.viz-3d[hidden] { display: none; }
 .viz-3d-labels { position: absolute; inset: auto 14px 12px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: rgba(255, 255, 255, .7); pointer-events: none; }
 .viz-3d-labels[hidden] { display: none; }
+
+/* 3B görünüm araç çubuğu ve tam ekran (craft3d.js toolbar / toggleFull) */
+.v3-tools { position: absolute; z-index: 4; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ws-tools { right: 12px; bottom: 12px; }
+.viz-tools { right: 12px; top: 52px; }
+.v3-btn { min-height: 36px; min-width: 36px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .22); background: rgba(11, 17, 24, .72); color: #eef2f6; font: inherit; font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; }
+.v3-btn:hover { background: rgba(30, 42, 56, .9); }
+.v3-btn[aria-pressed="true"][data-v3="axes"] { border-color: #8fb8ff; }
+.v3-btn:focus-visible { outline: 2px solid #8fb8ff; outline-offset: 2px; }
+@media (pointer: coarse) { .v3-btn { min-height: 44px; min-width: 44px; } }
+.ws-stage.has3d .ws-stars { display: none; }
+/* tam ekran: tarayıcının kendi tam ekranı ya da (izin yoksa) sayfa içinde tüm ekran */
+.ws-stage:fullscreen, .ws-stage.v3-full, .viz-wrap:fullscreen, .viz-wrap.v3-full { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; border-radius: 0; background: var(--space); }
+.ws-stage:-webkit-full-screen, .viz-wrap:-webkit-full-screen { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; border-radius: 0; }
+.ws-stage.v3-full, .viz-wrap.v3-full { position: fixed; inset: 0; z-index: 1000; width: 100vw; height: 100vh; height: 100dvh; }
+body:has(.v3-full) { overflow: hidden; }
+.ws-stage:fullscreen .ws-3d, .ws-stage.v3-full .ws-3d, .viz-wrap:fullscreen .viz-3d, .viz-wrap.v3-full .viz-3d { touch-action: none; }
+.ws-stage:fullscreen .ws-tools, .ws-stage.v3-full .ws-tools { right: 20px; bottom: 20px; }
+@media (max-width: 720px) {
+  .v3-btn { padding: 4px 8px; font-size: 13px; }
+  .ws-tools { right: 8px; bottom: 8px; left: 8px; }
+  .viz-tools { right: 8px; top: 44px; left: auto; }
+  .ws-3d-hint { display: none; }
+}

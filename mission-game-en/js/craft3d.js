@@ -248,6 +248,179 @@
     return parts;
   }
 
+  /* ---------------- ortak gezinme: tam ekran, yakınlaştırma, kaydırma, eksenler ----------------
+     Atölye (bu dosya) ve uçuş ekranı (flight3d.js) aynı yardımcıları kullanır.
+     Fare: sol tık sürükle = döndür, sağ tık ya da Shift + sürükle = kaydır, tekerlek = yakınlaştır (tam ekranda).
+     Dokunmatik: bir parmak = döndür, iki parmak = yakınlaştır + kaydır. */
+  const NAV_TXT = {
+    tr: { full: 'Tam ekran', exit: 'Küçült', zin: 'Yakınlaştır', zout: 'Uzaklaştır', axes: 'Eksenler', reset: 'Sıfırla', tools: '3B görünüm denetimleri' },
+    en: { full: 'Full screen', exit: 'Exit full screen', zin: 'Zoom in', zout: 'Zoom out', axes: 'Axes', reset: 'Reset', tools: '3D view controls' },
+  }[typeof LANG !== 'undefined' && LANG === 'en' ? 'en' : 'tr'];
+
+  function createNav(yaw, pitch, limits) {
+    const nav = { yaw, pitch, zoom: 1, panX: 0, panY: 0, axes: true, idleAt: 0, active: false, home: { yaw, pitch }, lim: limits || { pMin: -0.9, pMax: 1.1 } };
+    nav.reset = () => { nav.yaw = nav.home.yaw; nav.pitch = nav.home.pitch; nav.zoom = 1; nav.panX = 0; nav.panY = 0; nav.idleAt = performance.now(); };
+    nav.setZoom = (z) => { nav.zoom = Math.max(0.35, Math.min(4, z)); nav.idleAt = performance.now(); };
+    return nav;
+  }
+  function isFull(el) { return !!el && (document.fullscreenElement === el || document.webkitFullscreenElement === el || el.classList.contains('v3-full')); }
+  function exitFull(el) {
+    if (!el) return;
+    el.classList.remove('v3-full'); setTimeout(syncBars, 0);
+    const fe = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fe === el) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (_) {} }
+  }
+  function toggleFull(el) {
+    if (isFull(el)) return exitFull(el);
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    // tarayıcı tam ekrana izin vermezse (ör. iPhone, gömülü sayfa) sayfa içinde tüm ekranı kapla
+    const fallback = () => { el.classList.add('v3-full'); syncBars(); };
+    if (!req) return fallback();
+    try { const p = req.call(el); if (p && p.catch) p.catch(fallback); } catch (_) { fallback(); }
+    // bazı gömülü tarayıcılar isteği ne kabul ne ret eder: kısa süre sonra hâlâ tam ekran değilse sayfa içinde kapla
+    setTimeout(() => { if (!(document.fullscreenElement || document.webkitFullscreenElement)) fallback(); }, 800);
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.v3-full')) { document.querySelectorAll('.v3-full').forEach((el) => el.classList.remove('v3-full')); syncBars(); } });
+
+  // sürükle / iki parmak / tekerlek
+  function bindGestures(cv, nav, fullEl, kick) {
+    const pts = new Map();
+    let mode = null, st = null;
+    const snap = () => {
+      const a = [...pts.values()];
+      const mid = a.length > 1 ? { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 } : a[0];
+      const dist = a.length > 1 ? Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) : 0;
+      return { mid, dist, yaw: nav.yaw, pitch: nav.pitch, zoom: nav.zoom, panX: nav.panX, panY: nav.panY };
+    };
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
+    cv.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // pointer capture kullanılmıyor: takılı kalırsa araç çubuğu tıklamaları tuvale gidiyordu; pencereyi dinle
+      mode = pts.size >= 2 ? 'pinch' : (e.button === 2 || e.shiftKey ? 'pan' : 'rot');
+      st = snap(); nav.active = true; nav.idleAt = performance.now();
+      cv.classList.add('grab'); if (nav.onInteract) nav.onInteract();
+      kick();
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId) || !mode) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const now = snap(), h = cv.clientHeight || 300, dx = now.mid.x - st.mid.x, dy = now.mid.y - st.mid.y;
+      if (mode === 'rot') {
+        nav.yaw = st.yaw + dx * 0.01;
+        nav.pitch = Math.max(nav.lim.pMin, Math.min(nav.lim.pMax, st.pitch + dy * 0.006));
+      } else {
+        nav.panX = st.panX - (dx / h) * 1.6 / nav.zoom;
+        nav.panY = st.panY + (dy / h) * 1.6 / nav.zoom;
+        if (mode === 'pinch' && st.dist > 0) nav.setZoom(st.zoom * (now.dist / st.dist));
+      }
+      nav.idleAt = performance.now();
+      kick();
+    });
+    const up = (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size === 0) { mode = null; nav.active = false; cv.classList.remove('grab'); }
+      else { mode = 'rot'; st = snap(); }
+      nav.idleAt = performance.now();
+    };
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    // tekerlek sayfayı kaydırmasın diye sadece tam ekranda yakınlaştırır
+    cv.addEventListener('wheel', (e) => {
+      if (!isFull(fullEl())) return;
+      e.preventDefault();
+      nav.setZoom(nav.zoom * Math.exp(-e.deltaY * 0.0015));
+      kick();
+    }, { passive: false });
+  }
+
+  // araç çubuğu: Tam ekran, +, −, Eksenler, Sıfırla
+  function toolbar(container, fullEl, nav, kick, extraClass) {
+    const bar = document.createElement('div');
+    bar.className = 'v3-tools' + (extraClass ? ' ' + extraClass : '');
+    bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', NAV_TXT.tools);
+    bar.innerHTML = `<button type="button" class="v3-btn" data-v3="full">${NAV_TXT.full}</button>
+      <button type="button" class="v3-btn" data-v3="in" aria-label="${NAV_TXT.zin}">+</button>
+      <button type="button" class="v3-btn" data-v3="out" aria-label="${NAV_TXT.zout}">−</button>
+      <button type="button" class="v3-btn" data-v3="axes" aria-pressed="${nav.axes}">${NAV_TXT.axes}</button>
+      <button type="button" class="v3-btn" data-v3="reset">${NAV_TXT.reset}</button>`;
+    const sync = () => {
+      const f = isFull(fullEl());
+      const b = bar.querySelector('[data-v3="full"]'); b.textContent = f ? NAV_TXT.exit : NAV_TXT.full; b.setAttribute('aria-pressed', f);
+      bar.querySelector('[data-v3="axes"]').setAttribute('aria-pressed', nav.axes);
+    };
+    bar.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-v3]'); if (!b) return;
+      e.stopPropagation();
+      const k = b.dataset.v3;
+      if (k === 'full') toggleFull(fullEl());
+      else if (k === 'in') nav.setZoom(nav.zoom * 1.25);
+      else if (k === 'out') nav.setZoom(nav.zoom / 1.25);
+      else if (k === 'axes') nav.axes = !nav.axes;
+      else if (k === 'reset') nav.reset();
+      setTimeout(sync, 60); kick();
+    });
+    bar.sync = sync;
+    container.appendChild(bar);
+    sync();
+    return bar;
+  }
+  // tam ekrana girip çıkınca tüm araç çubuklarını güncelle
+  function syncBars() { document.querySelectorAll('.v3-tools').forEach((b) => b.sync && b.sync()); }
+  document.addEventListener('fullscreenchange', syncBars);
+  document.addEventListener('webkitfullscreenchange', syncBars);
+
+  // eksenler: X kırmızı, Y yeşil, Z mavi; -boy..+boy çizgi, + uçta ok ve harf
+  function makeAxes(size) {
+    const g = new THREE.Group();
+    const AX = [['X', 0xe5534b, [1, 0, 0]], ['Y', 0x57ab5a, [0, 1, 0]], ['Z', 0x539bf5, [0, 0, 1]]];
+    for (const [name, col, d] of AX) {
+      const v = new THREE.Vector3(...d);
+      const geo = new THREE.BufferGeometry().setFromPoints([v.clone().multiplyScalar(-size), v.clone().multiplyScalar(size)]);
+      g.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.85 })));
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(size * 0.025, size * 0.07, 12), new THREE.MeshBasicMaterial({ color: col }));
+      tip.position.copy(v.clone().multiplyScalar(size));
+      tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v);
+      g.add(tip);
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d'); x.font = 'bold 44px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillStyle = '#' + col.toString(16).padStart(6, '0'); x.fillText(name, 32, 34);
+      const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      sp.position.copy(v.clone().multiplyScalar(size * 1.13)); sp.scale.setScalar(size * 0.13);
+      g.add(sp);
+    }
+    return g;
+  }
+
+  // arka plan yıldızları (yarıçap r küresi üzerinde), birkaç parlak yıldızla
+  function makeStars(n, r, seed) {
+    let s = seed >>> 0; const rr = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const u = rr() * 2 - 1, a = rr() * Math.PI * 2, q = Math.sqrt(1 - u * u);
+      pos.set([Math.cos(a) * q * r, u * r, Math.sin(a) * q * r], i * 3);
+      const b = 0.25 + Math.pow(rr(), 3) * 0.75, warm = rr() < 0.15;
+      col.set(warm ? [b, b * 0.88, b * 0.72] : [b * 0.95, b, b * 1.05], i * 3);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const grp = new THREE.Group();
+    grp.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true })));
+    const bp = new Float32Array(24 * 3);
+    for (let i = 0; i < 24; i++) { const u = rr() * 2 - 1, a = rr() * Math.PI * 2, q = Math.sqrt(1 - u * u); bp.set([Math.cos(a) * q * r, u * r, Math.sin(a) * q * r], i * 3); }
+    const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(bp, 3));
+    grp.add(new THREE.Points(bg, new THREE.PointsMaterial({ size: 3.2, sizeAttenuation: false, color: 0xf4f7ff })));
+    return grp;
+  }
+
+  // kamerayı merkez etrafında yerleştir; yakınlaştırma ve kaydırmayı uygula
+  function placeCamera(cam, c, nav, dist) {
+    const d = dist / nav.zoom;
+    cam.position.set(c.x + Math.sin(nav.yaw) * Math.cos(nav.pitch) * d, c.y + Math.sin(nav.pitch) * d, c.z + Math.cos(nav.yaw) * Math.cos(nav.pitch) * d);
+    cam.lookAt(c);
+    cam.translateX(nav.panX * dist * 0.5);
+    cam.translateY(nav.panY * dist * 0.5);
+  }
+
   /* ---------------- sahne ---------------- */
   let V = null; // { host, renderer, scene, camera, craft, ... }
   function createView(host) {
@@ -271,19 +444,14 @@
     const psun = new THREE.DirectionalLight(0xfff4e6, 2.4); psun.position.set(-3, 1.6, 2.2); pscene.add(psun);
     pscene.add(new THREE.AmbientLight(0x8899bb, 0.05));
     renderer.autoClear = false;
-    const v = { pscene, pcam, planet: null, pBody: null, host, renderer, cv, scene, camera, craft, parts: new Map(), yaw: -0.55, pitch: 0.28, dist: 0, distT: 6, drag: null, idleAt: 0, pops: [], raf: 0, visible: true, hinted: false };
-    // sürükleyerek döndür (dikey kaydırma sayfaya kalır: touch-action pan-y)
-    cv.addEventListener('pointerdown', (e) => { v.drag = { x: e.clientX, y: e.clientY, yaw: v.yaw, pitch: v.pitch }; try { cv.setPointerCapture(e.pointerId); } catch (_) {} cv.classList.add('grab'); });
-    cv.addEventListener('pointermove', (e) => {
-      if (!v.drag) return;
-      v.yaw = v.drag.yaw + (e.clientX - v.drag.x) * 0.01;
-      v.pitch = Math.max(-0.9, Math.min(1.1, v.drag.pitch + (e.clientY - v.drag.y) * 0.006));
-      v.idleAt = performance.now();
-      if (!v.hinted) { v.hinted = true; const h = host.querySelector('.ws-3d-hint'); if (h) h.classList.add('gone'); }
-      kick();
-    });
-    const up = () => { v.drag = null; v.idleAt = performance.now(); cv.classList.remove('grab'); };
-    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    // yıldızlar ayrı sahnede, en arkada (araçla birlikte döner)
+    const sscene = new THREE.Scene(); sscene.add(makeStars(900, 60, 7));
+    const axes = makeAxes(1); scene.add(axes);
+    const nav = createNav(-0.55, 0.28);
+    const v = { pscene, pcam, planet: null, pBody: null, sscene, axes, nav, host, renderer, cv, scene, camera, craft, parts: new Map(), dist: 0, distT: 6, pops: [], raf: 0, visible: true, hinted: false };
+    nav.onInteract = () => { if (!v.hinted) { v.hinted = true; const h = v.host.querySelector('.ws-3d-hint'); if (h) h.classList.add('gone'); } };
+    // sürükle = döndür, iki parmak / sağ tık = kaydır ve yakınlaştır (dikey tek parmak sayfayı kaydırır)
+    bindGestures(cv, nav, () => v.host.parentElement, () => kick());
     if ('IntersectionObserver' in window) {
       v.io = new IntersectionObserver((es) => { v.visible = es[0].isIntersecting; if (v.visible) kick(); });
     }
@@ -299,6 +467,8 @@
     host.innerHTML = '';
     host.appendChild(V.cv);
     const hint = document.createElement('span'); hint.className = 'ws-3d-hint' + (V.hinted ? ' gone' : ''); hint.textContent = TXT.hint; host.appendChild(hint);
+    toolbar(host, () => V.host.parentElement, V.nav, () => kick(), 'ws-tools');
+    if (host.parentElement) host.parentElement.classList.add('has3d');
     if (V.io) { V.io.disconnect(); V.io.observe(host); }
     V.parts.clear(); clearCraft();
     V.first = true;
@@ -350,8 +520,9 @@
     V.center = sph.center.clone();
     const fov = (V.camera.fov * Math.PI) / 180, aspect = V.camera.aspect || 1.6;
     const fitV = sph.radius / Math.sin(fov / 2), fitH = sph.radius / Math.sin(Math.atan(Math.tan(fov / 2) * aspect));
-    V.distT = Math.max(fitV, fitH) * 0.82;
+    V.distT = Math.max(fitV, fitH) * 0.78;
     V.radius = sph.radius;
+    V.axes.scale.setScalar(sph.radius * 1.15); V.axes.position.copy(sph.center);
     if (!V.dist) V.dist = V.distT;
   }
 
@@ -360,7 +531,7 @@
     if (!w || !h) return false;
     if (V.w !== w || V.h !== h) {
       V.w = w; V.h = h; V.renderer.setSize(w, h, false); V.camera.aspect = w / h; V.camera.updateProjectionMatrix();
-      if (V.radius) { const fov = (V.camera.fov * Math.PI) / 180; V.distT = Math.max(V.radius / Math.sin(fov / 2), V.radius / Math.sin(Math.atan(Math.tan(fov / 2) * V.camera.aspect))) * 0.82; }
+      if (V.radius) { const fov = (V.camera.fov * Math.PI) / 180; V.distT = Math.max(V.radius / Math.sin(fov / 2), V.radius / Math.sin(Math.atan(Math.tan(fov / 2) * V.camera.aspect))) * 0.78; }
     }
     return true;
   }
@@ -380,21 +551,28 @@
       p.obj.scale.setScalar(1); return false;
     });
     // kendiliğinden yavaş dönüş (kullanıcı bıraktıktan 2,5 sn sonra)
-    if (!REDUCED_MOTION && !V.drag && now - V.idleAt > 2500) { V.yaw += 0.0035; busy = true; }
+    if (!REDUCED_MOTION && !V.nav.active && now - V.nav.idleAt > 2500) { V.nav.yaw += 0.0035; busy = true; }
     if (Math.abs(V.dist - V.distT) > 0.01) { V.dist += (V.distT - V.dist) * 0.12; busy = true; } else V.dist = V.distT;
     const c = V.center || new THREE.Vector3();
-    V.camera.position.set(c.x + Math.sin(V.yaw) * Math.cos(V.pitch) * V.dist, c.y + Math.sin(V.pitch) * V.dist, c.z + Math.cos(V.yaw) * Math.cos(V.pitch) * V.dist);
-    V.camera.lookAt(c);
+    placeCamera(V.camera, c, V.nav, V.dist);
+    V.axes.visible = V.nav.axes;
     V.craft.position.y = REDUCED_MOTION ? 0 : Math.sin(now / 900) * 0.04;
     V.renderer.clear();
+    V.sscene.position.copy(V.camera.position); // yıldızlar sonsuz uzakta gibi
+    V.renderer.render(V.sscene, V.camera);
+    V.renderer.clearDepth();
     if (V.planet) {
       // 2B resmin yeri: sağ alt köşe, kısmen dışarıda (style.css .ws-planet ile aynı ölçüler)
-      const w = V.w, h = V.h, d = Math.min(0.46 * w, 360);
+      const w = V.w, h = V.h, full = isFull(V.host.parentElement);
+      // tam ekranda gezegen daha büyük ve daha görünür; normalde 2B resmin yeri
+      const d = full ? Math.min(w, h) * 0.75 : Math.min(0.46 * w, 360);
       V.pcam.left = 0; V.pcam.right = w; V.pcam.top = 0; V.pcam.bottom = -h; V.pcam.updateProjectionMatrix();
       V.planet.scale.setScalar(d / 2);
-      V.planet.position.set(w * 1.04 - d / 2, -(h * 1.34 - d / 2), -d);
+      if (full) V.planet.position.set(w - d * 0.2, -(h - d * 0.18), -d);
+      else V.planet.position.set(w * 1.04 - d / 2, -(h * 1.34 - d / 2), -d);
       if (!REDUCED_MOTION) V.planet.rotation.y += 0.0008;
       V.renderer.render(V.pscene, V.pcam);
+      V.renderer.clearDepth();
     }
     V.renderer.render(V.scene, V.camera);
     if ((busy || !REDUCED_MOTION) && V.visible && !document.hidden) kick();
@@ -408,6 +586,8 @@
     ready(onReady) { if (state === 'ok') return true; if (state !== 'fail') load((ok) => { if (ok && onReady) onReady(); }); return false; },
     failed() { return state === 'fail'; },
     nasaTex,
+    // uçuş ekranı da aynı gezinme araçlarını kullanır
+    nav: { createNav, bindGestures, toolbar, makeAxes, makeStars, placeCamera, isFull, exitFull },
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde
     build(R) { const g = new THREE.Group(); buildParts(R).forEach((p) => g.add(p.obj)); return g; },
     show(host, R) {
