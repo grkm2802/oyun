@@ -64,8 +64,8 @@ const EVENTS = [
   {
     id: 'solar_storm', role: 'SE', phases: ['cruise', 'ops'], weight: 3, max: 2,
     title: '☀️ Solar storm incoming',
-    text: (s) => `A coronal mass ejection from the Sun will hit the spacecraft within hours. High-energy particles can flip bits or damage electronics. Your spacecraft has a ${opt('computer', s.R.d.computer).name.toLowerCase()} computer and "${opt('shielding', s.R.d.shielding).name}" radiation protection.`,
-    learn: 'Real spacecraft often enter "safe mode" during storms: instruments off, only essential systems running.',
+    text: (s) => `A particle storm from the Sun will hit the spacecraft within hours. It can damage electronics.`,
+    learn: 'Real satellites switch to "safe mode" in storms: instruments off.',
     choices: [
       { label: 'Enter safe mode', hint: 'Lose about two weeks of science. No risk.',
         apply: (s) => { addTemp(s, 1, 0.5); return 'Safe mode: the storm passed harmlessly; two weeks of observations were lost.'; } },
@@ -87,8 +87,8 @@ const EVENTS = [
       return { id, cost: Math.round(3 + INSTRUMENTS[id].cost * TIER[s.instOn[id]].c * 0.15) };
     },
     title: (s, c) => `⚠️ ${INSTRUMENTS[c.id].name} anomaly`,
-    text: (s, c) => `The ${INSTRUMENTS[c.id].name.toLowerCase()} is returning noisy, corrupted data. Engineers think a detector or electronics board is misbehaving.`,
-    learn: 'Ground teams can often fix problems remotely by uploading new software or changing operating modes — but investigations cost time and money.',
+    text: (s, c) => `The ${INSTRUMENTS[c.id].name.toLowerCase()} is sending broken data.`,
+    learn: 'Most problems are fixed by sending new software from Earth.',
     choices: [
       { label: 'Fund an investigation', hint: (s, c) => `Costs $${c.cost}M from reserve. ~80% chance of a full fix.`,
         can: (s, c) => s.reserve >= c.cost,
@@ -108,7 +108,7 @@ const EVENTS = [
     setup: (s) => ({ amount: Math.max(2, Math.round(s.R.budget * 0.05)) }),
     title: '🏛️ Agency budget cut',
     text: (s, c) => `The space agency's budget was reduced. Your mission must give back $${c.amount}M.`,
-    learn: 'Missions compete for money every year. Reserves protect the mission from such cuts.',
+    learn: 'Spare money protects the mission from cuts like this.',
     choices: [
       { label: 'Pay from reserve', hint: (s, c) => `Reserve: $${Math.round(s.reserve)}M`, can: (s, c) => s.reserve >= c.amount,
         apply: (s, c) => { s.reserve -= c.amount; return 'The cut was absorbed by the reserve. Science continues as planned.'; } },
@@ -121,8 +121,8 @@ const EVENTS = [
   {
     id: 'debris', role: 'MM', phases: ['ops'], weight: 2, max: 2, cond: (s) => EARTH_LOW.includes(s.R.d.orbit),
     title: '💥 Collision warning',
-    text: () => 'Space surveillance predicts a close approach with a piece of debris in 2 days. Probability of collision: about 1 in 100.',
-    learn: 'Tens of thousands of debris pieces orbit Earth. Operators perform avoidance manoeuvres when risk exceeds ~1 in 10,000.',
+    text: () => 'A piece of space junk will pass very close in 2 days. 1 in 100 chance of a hit.',
+    learn: 'Tens of thousands of pieces of junk circle Earth.',
     choices: [
       { label: 'Perform avoidance manoeuvre', hint: 'Uses ~2 m/s of propellant.', can: (s) => s.R.d.propulsion !== 'none' && s.dvLeft >= 2,
         apply: (s) => { s.dvLeft -= 2; return 'A small burn moved the spacecraft safely out of the way.'; } },
@@ -133,8 +133,8 @@ const EVENTS = [
   {
     id: 'ground_outage', role: 'CL', phases: ['ops'], weight: 2, max: 2,
     title: '📡 Ground station outage',
-    text: () => 'A storm damaged your main ground antenna. It will be offline for two weeks.',
-    learn: 'Onboard storage lets a spacecraft keep observing while it cannot talk to Earth — up to the size of its memory.',
+    text: () => 'A storm broke the ground antenna. Two weeks offline.',
+    learn: 'The craft can store data until its memory is full.',
     choices: [
       { label: 'Rent backup antennas', hint: 'Costs $2M. No data loss.', can: (s) => s.reserve >= 2,
         apply: (s) => { s.reserve -= 2; return 'Backup antennas kept the data flowing.'; } },
@@ -145,8 +145,8 @@ const EVENTS = [
   {
     id: 'conjunction', role: 'CL', phases: ['ops'], weight: 2, max: 2, cond: (s) => s.sc.distAU > 1,
     title: '🌞 Solar conjunction',
-    text: () => 'The Sun is moving between Earth and your spacecraft. For about two weeks, the Sun\'s radio noise will block all communication.',
-    learn: 'Solar conjunctions happen regularly for Mars and outer-planet missions. Teams upload commands in advance and pause risky activities.',
+    text: () => 'The Sun is moving between Earth and your craft. No contact for two weeks.',
+    learn: 'This happens regularly on Mars missions.',
     choices: [
       { label: 'Keep observing autonomously', hint: (s) => `Store data onboard (${fmtData(s.R.data.storage)}). Overflow is lost.`,
         apply: (s) => { s.linkMult = 0.5; if (s.R.d.computer === 'cots' && rand() < 0.3) return hitComputer(s, 'Without contact, a software fault went unnoticed.'); return 'The spacecraft ran its pre-loaded sequence perfectly.'; } },
@@ -158,7 +158,7 @@ const EVENTS = [
     id: 'discovery', role: 'SL', phases: ['ops'], weight: 1.5, max: 1,
     title: '✨ Unexpected opportunity!',
     text: (s) => s.sc.discovery,
-    learn: 'Flexible missions can react to surprises — but changing plans costs propellant, money and time.',
+    learn: 'Changing plans costs fuel and money.',
     choices: [
       { label: 'Retarget the spacecraft', hint: 'Costs $2M and ~5 m/s of propellant.', can: (s) => s.reserve >= 2 && s.dvLeft >= 5 && s.R.d.propulsion !== 'none',
         apply: (s) => {
@@ -173,8 +173,8 @@ const EVENTS = [
   {
     id: 'dust_storm', role: 'SL', phases: ['ops'], weight: 2, max: 1, cond: (s) => s.sc.id === 'mars',
     title: '🌪️ Global dust storm',
-    text: () => 'A dust storm is spreading over the whole planet. The surface will be hidden for months.',
-    learn: 'Mars\' global dust storms block surface views — but they are exactly what climate scientists want to study.',
+    text: () => 'A dust storm covers the whole planet. The surface is hidden for months.',
+    learn: 'These storms are a big chance for climate scientists.',
     choices: [
       { label: 'Focus on the storm', hint: 'Boosts weather science if you carry atmospheric/thermal instruments.',
         apply: (s) => {
@@ -188,8 +188,8 @@ const EVENTS = [
   {
     id: 'rad_spike', role: 'SE', phases: ['ops'], weight: 2, max: 1, cond: (s) => s.sc.id === 'europa',
     title: '☢️ Radiation stronger than predicted',
-    text: () => 'Measurements show Jupiter\'s radiation belts are more intense than the models predicted.',
-    learn: 'Radiation is the biggest danger at Jupiter. Missions plan trajectories to limit time in the worst regions.',
+    text: () => 'Jupiter\'s radiation is stronger than expected.',
+    learn: 'Radiation is the biggest danger at Jupiter.',
     choices: [
       { label: 'Adjust the trajectory', hint: 'Dose −30% for the rest of the mission, science −10%.',
         apply: (s) => { s.doseMult *= 0.7; s.opsEff *= 0.9; return 'New trajectory avoids the harshest regions.'; } },
@@ -199,8 +199,8 @@ const EVENTS = [
   {
     id: 'aerobrake', role: 'SE', phases: ['arrival'], weight: 5, max: 1, cond: (s) => s.R.dv.aero,
     title: '🔥 Aerobraking heating alert',
-    text: () => 'The Martian upper atmosphere swelled unexpectedly. The last aerobraking pass heated the solar panels close to their limit.',
-    learn: 'Aerobraking saves hundreds of kilograms of propellant, but each pass through the atmosphere is risky.',
+    text: () => 'Mars\' air is thicker than expected. The panels got very hot on the last pass.',
+    learn: 'Braking in the air saves fuel but is risky.',
     choices: [
       { label: 'Raise the low point', hint: '+2 months of aerobraking and ~15 m/s of propellant.',
         apply: (s) => { s.arrivalLeft += 2; s.dvLeft -= 15; return 'Gentler passes: aerobraking took longer but stayed safe.'; } },
@@ -211,8 +211,8 @@ const EVENTS = [
   {
     id: 'wheel', role: 'SE', phases: [], weight: 0, max: 9, forced: true,
     title: '⚙️ Reaction wheel failure',
-    text: () => 'One reaction wheel has stopped spinning. Without it, the spacecraft cannot point precisely.',
-    learn: 'Kepler and Hubble both lost reaction wheels; creative engineering kept them working.',
+    text: () => 'One steering wheel stopped. The craft can no longer point precisely.',
+    learn: 'Hubble had the same failure and kept working.',
     choices: [
       { label: 'Hold pointing with thrusters', hint: 'Keeps precision but uses extra propellant every month.', can: (s) => s.R.d.propulsion !== 'none' && s.dvLeft > 10,
         apply: (s) => { s.extraSk += 25; return 'Thrusters now help hold the pointing. Propellant will run out sooner.'; } },
@@ -224,8 +224,8 @@ const EVENTS = [
     id: 'extended', role: 'MM', phases: [], weight: 0, max: 9, forced: true,
     setup: (s) => ({ cost: Math.round((s.sc.opsPerYear + opt('ground', s.R.d.ground).perYear) * 10) / 10 }),
     title: '🎉 Primary mission complete!',
-    text: (s, c) => `The spacecraft is still healthy. The agency offers a 12-month extended mission for $${c.cost}M of operations money.`,
-    learn: 'Many famous missions (Opportunity, Voyager, Hubble) returned most of their science during extended missions.',
+    text: (s, c) => `The craft is still healthy. For $${c.cost}M the mission can run 12 more months.`,
+    learn: 'Voyager and Hubble did most of their science in extra time.',
     choices: [
       { label: 'Extend by 12 months', hint: (s, c) => `Costs $${c.cost}M · reserve $${Math.round(s.reserve)}M · needs propellant.`,
         can: (s, c) => (s.reserve >= c.cost || s.R.budget === Infinity) && (s.R.orbit.skDv === 0 || s.dvLeft >= s.R.orbit.skDv * 0.8 || s.R.d.propulsion === 'none'),
@@ -457,30 +457,30 @@ function finalScore(sim, approvals) {
 function buildLessons(sim, score) {
   const R = sim.R, sc = sim.sc, L = [];
   const add = (type, title, text) => L.push({ type, title, text });
-  if (sim.endReason === 'launch') add('bad', 'The rocket failed', `Your ${R.L.name.toLowerCase()} had a ${Math.round((R.L.rel - R.diff.relPenalty) * 100)}% success rate. Even reliable rockets fail sometimes — that is why expensive missions pick the most proven vehicles and why insurance exists. Try flying the same design again.`);
-  if (sim.endReason === 'power') add('bad', 'Not enough power', `Sunlight at ${sc.body} is ${Math.round(100 / (sc.sunAU * sc.sunAU))}% of Earth's (inverse-square law). Your spacecraft produced ${Math.round(sim.lastPower)} W but needed ${Math.round(R.power.busLoad)} W just for its computer, pointing and heaters.`);
-  if (sim.endReason === 'decay') add('bad', 'Orbit decayed', `${R.orbit.short} needs ${R.orbit.skDv} m/s of station-keeping per year. ${R.d.propulsion === 'none' ? 'Without propulsion there was no way to fight it.' : 'Your propellant ran out. A bigger propellant reserve or more efficient engine would have extended the mission.'}`);
-  if (sim.endReason === 'failure') add('bad', 'Single point of failure', 'A failed part with no backup ended the mission. Redundancy adds mass and cost, but protects against exactly this.');
-  if (sim.endReason === 'collision') add('bad', 'Space debris', 'Accepting collision risks occasionally backfires. Propulsion lets you dodge debris — an important reason to carry it even in Earth orbit.');
+  if (sim.endReason === 'launch') add('bad', 'The rocket failed', `This rocket had a ${Math.round((R.L.rel - R.diff.relPenalty) * 100)}% success rate. It happens; try again.`);
+  if (sim.endReason === 'power') add('bad', 'Not enough power', `Sunlight is weak at ${sc.body}. The craft made ${Math.round(sim.lastPower)} W but needed ${Math.round(R.power.busLoad)} W.`);
+  if (sim.endReason === 'decay') add('bad', 'Orbit decayed', `${R.d.propulsion === 'none' ? 'Without an engine the orbit could not be kept.' : 'Fuel ran out. More fuel would have helped.'}`);
+  if (sim.endReason === 'failure') add('bad', 'Single point of failure', 'A part with no backup broke. Spare parts would have saved it.');
+  if (sim.endReason === 'collision') add('bad', 'Space debris', 'Space junk hit the craft. An engine would have let you dodge.');
 
   if (sim.opsCounted > 0) {
     const pf = sim.pfSum / sim.opsCounted;
-    if (pf < 0.95) add('warn', 'Instruments were power-starved', `On average only ${Math.round(pf * 100)}% of the needed instrument power was available${R.power.batt < R.power.battNeed ? ', partly because the battery could not cover the eclipses' : ''}. Bigger solar arrays, a larger battery or fewer power-hungry instruments would help.`);
+    if (pf < 0.95) add('warn', 'Instruments were power-starved', `Instruments got only ${Math.round(pf * 100)}% of the power they needed. Bigger panels or battery would help.`);
     if (score.lostFrac > 0.1 || sim.dfSum / sim.opsCounted < 0.9) {
       const sent = sim.dataGen > 0 ? Math.round(100 * sim.dataDown / sim.dataGen) : 0;
-      add('warn', 'Data stuck in space', `Only ${sent}% of the data collected reached Earth. Your link delivered ${fmtRate(currentLinkRate(sim))} for ${R.data.hours.toFixed(1)} h per day. Radio signals weaken with distance squared — a larger dish, Ka-band, or the Deep Space Network would carry more.`);
+      add('warn', 'Data stuck in space', `Only ${sent}% of the data reached Earth. A bigger antenna would carry more.`);
     }
-    if (sim.dose > R.rad.tol) add('warn', 'Radiation took its toll', `Electronics absorbed ${Math.round(sim.dose)} krad against a tolerance of ${R.rad.tol} krad. Shielding and radiation-hardened parts are essential in harsh environments.`);
+    if (sim.dose > R.rad.tol) add('warn', 'Radiation took its toll', `Electronics took too much radiation. Shielding or tougher parts were needed.`);
   }
   for (const o of score.objs) {
-    if (o.cap < 0.4) add('warn', `Weak instruments for "${o.name}"`, `Your instruments could reach only ${Math.round(o.cap * 100)}% of what this objective needs. Better suited: ${Object.keys(o.needs).map((k) => INSTRUMENTS[k].icon + ' ' + INSTRUMENTS[k].name).join(', ')}.`);
-    else if (o.score < o.cap * 0.8 && sim.endReason !== 'launch') add('info', `Not enough time for "${o.name}"`, `It needed ${o.months} months of good observations. Longer operations (or fewer interruptions) would have completed it.`);
+    if (o.cap < 0.4) add('warn', `Weak instruments for "${o.name}"`, `Better instruments: ${Object.keys(o.needs).map((k) => INSTRUMENTS[k].icon + ' ' + INSTRUMENTS[k].name).join(', ')}.`);
+    else if (o.score < o.cap * 0.8 && sim.endReason !== 'launch') add('info', `Not enough time for "${o.name}"`, `It needed ${o.months} months of observing. Make the mission longer.`);
   }
-  if (R.level < 2 && R.insts.some((i) => i.I.fine)) add('warn', 'Blurry pointing', 'High-resolution instruments need reaction wheels and a star tracker. Coarse pointing smeared the images.');
-  if (R.schedule.delay > 0) add('info', 'Schedule slip', `Development took ${R.schedule.dev} months against a ${R.schedule.deadline}-month plan, adding ${fmtMoney(R.schedule.delay * R.schedule.marching)} of cost.`);
-  if (sim.extended) add('good', 'Extended mission', `Your healthy spacecraft earned ${sim.extended} extended mission year(s) — great margins pay off.`);
-  if (sim.spares < opt('redundancy', R.d.redundancy).spares) add('good', 'Redundancy paid off', 'Backup units took over after failures, keeping the mission alive.');
-  if (R.power.margin >= 0.15 && R.mass.margin >= 0.1 && R.data.ratio >= 1) add('good', 'Balanced design', 'Power, mass and data all had healthy margins. That is how real flight projects survive surprises.');
-  if (!L.length) add('good', 'Smooth flight', 'Everything went to plan. Could you get the same science for less money?');
+  if (R.level < 2 && R.insts.some((i) => i.I.fine)) add('warn', 'Blurry pointing', 'Images were blurry; better pointing was needed.');
+  if (R.schedule.delay > 0) add('info', 'Schedule slip', `Building ran late and cost ${fmtMoney(R.schedule.delay * R.schedule.marching)} extra.`);
+  if (sim.extended) add('good', 'Extended mission', `The craft stayed healthy and flew ${sim.extended} extra year(s).`);
+  if (sim.spares < opt('redundancy', R.d.redundancy).spares) add('good', 'Redundancy paid off', 'Spare parts saved the mission.');
+  if (R.power.margin >= 0.15 && R.mass.margin >= 0.1 && R.data.ratio >= 1) add('good', 'Balanced design', 'Power, mass and data were well balanced.');
+  if (!L.length) add('good', 'Smooth flight', 'Everything went to plan. Can you do it cheaper?');
   return L;
 }

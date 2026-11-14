@@ -57,6 +57,7 @@ Scriptler klasik `<script>` olarak bu sırayla yüklenir ve global değişkenler
 - Yeni bir JS dosyası eklersen şu listelere de ekle: `loader.js`, `publish/*/index.html`, `sw.js` (`CORE`), `mission-game*/index.html`, Artifact `files` haritası.
 
 ## Görsel tasarım (kullanıcının isteği: sade, her yaşa uygun)
+- **Yazılar kısa olsun** (2026-11-14 kullanıcı: "yazılar çok karışık, kimse okuyamaz"). Açıklamalar tek kısa cümle (~40–70 karakter), teknik terim yok (Δv, Isp, krad gibi sayılar açıklamada değil, gerekiyorsa sadece değer olarak). Yeni metin eklerken bu ölçüyü koru; iki dilde de aynı kısalıkta yaz. Kısaltılan yerler: data.js açıklamaları ve sözlük, workshop.js "Neden önemli?" kutuları, sim.js olay metinleri ve rapordaki dersler, model.js kontrol listesi açıklamaları, tour.js, ui.js başlangıç/yardım metinleri.
 - Kullanıcı önceki tasarımı "çok yapay zekâ gibi" buldu. **Geri dönme:** geçişli (gradient) renkler, parlama/glow, mor tonlar, Space Grotesk, her yerde süs simgesi yok.
 - **Koyu tema varsayılan** (kullanıcı beyaz açılmasını istemedi). Sağ üstte Açık/Koyu düğmesi (`themeSwitch()`/`setTheme()` in ui.js), seçim `localStorage['ma_theme']`, `<html data-theme>` ile uygulanır. Tüm renkler `css/style.css` başındaki token'lardan (açık değerler `:root`, koyu değerler `[data-theme="dark"]` ve sistem koyu). Rol renkleri `var(--role-mm)` vb.
 - Yazı tipi: Atkinson Hyperlegible Next (okunabilirlik için tasarlandı), temel boyut 17px. Sayılar `tabular-nums` ile hizalı.

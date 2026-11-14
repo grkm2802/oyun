@@ -72,21 +72,21 @@ function renderTitle() {
   const ps = players();
   const board = loadBoard();
   const crew = S.mode === 'solo'
-    ? `<p class="muted" style="margin:10px 0 0">You will play all four roles: Mission Manager, Spacecraft Engineer, Science Lead and Communications Lead.</p>`
+    ? `<p class="muted" style="margin:10px 0 0">You play all four roles.</p>`
     : `<div class="row wrap" style="margin-top:12px"><span class="muted">Players:</span>
         <div class="seg">${[2, 3, 4].map((n) => `<button data-act="nplayers" data-v="${n}" class="${S.nPlayers === n ? 'sel' : ''}">${n}</button>`).join('')}</div></div>
        <div class="players">${ps.map((p) => `<div class="player-row">
           <input data-name="${p.idx}" value="${esc(p.name)}" maxlength="18" aria-label="Player ${p.idx + 1} name">
           <div class="role-chips">${p.roles.map((r) => `<span class="chip" style="border-color:${ROLES[r].color};color:${ROLES[r].color}">${ROLES[r].icon} ${ROLES[r].name}</span>`).join('')}</div>
         </div>`).join('')}</div>
-       <p class="muted" style="font-size:13px;margin:10px 0 0">Pass the device around: each role owns part of the design and must approve it before launch. During flight, the responsible role decides on emergencies.</p>`;
+       <p class="muted" style="font-size:13px;margin:10px 0 0">Pass the device around. Each role approves its part.</p>`;
 
   return `<div class="title-wrap">
     <div class="row" style="justify-content:flex-end">${langSwitch()}</div>
     <div class="hero">
       <div class="tag">A space mission design game</div>
       <h1>Mission Architect</h1>
-      <p>Pick a destination, design the spacecraft, choose the rocket — then fly it. Every choice changes the mass, power, budget, data and risk of your mission.</p>
+      <p>Pick a target, design your craft, launch.</p>
     </div>
 
     <div class="section-title"><span class="n">1</span> Choose your mission</div>
@@ -132,7 +132,7 @@ function renderTitle() {
         ${board.slice().sort((a, b) => b.ranked - a.ranked).slice(0, 10).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.crew)}</td><td>${SCENARIOS[r.s]?.icon || ''} ${esc(r.mission)}</td><td>${esc(r.level)}</td><td>${esc(r.outcome)}</td><td class="mono"><b>${r.ranked}</b> <span class="dim">(${r.grade})</span></td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">No missions flown yet on this device. Be the first!</p>'}
     </div>
-    <div class="footer">Built for the NASA Space Apps Challenge · Space Mission Design Game. Numbers are simplified for learning but keep real-world proportions.</div>
+    <div class="footer">Built for the NASA Space Apps Challenge. Numbers are simplified.</div>
   </div>`;
 }
 
@@ -401,7 +401,7 @@ function renderStep(R) {
       <div class="panel pad"><h3 style="margin-bottom:10px">Design issues</h3>${issueList(R.issues, true)}</div>
       <div class="panel pad"><h3 style="margin-bottom:10px">Role goals</h3><div class="choice-list">
         ${Object.values(ROLES).map((r) => `<div class="goal"><span class="ri" style="color:${r.color}"></span><div class="grow"><b style="color:${r.color}">${r.name}</b><div class="muted" style="font-size:13px">${r.goal}</div></div><span style="font-size:20px">${R.roleGoals[r.id] ? '✅' : '❌'}</span></div>`).join('')}
-      </div><p class="muted" style="font-size:13px;margin:10px 0 0">Each goal met is worth 20 teamwork points. You can still launch with unmet goals — that's a team decision.</p></div>
+      </div><p class="muted" style="font-size:13px;margin:10px 0 0">Each goal met is worth 20 points.</p></div>
       ${S.mode === 'team' ? `<div class="panel pad"><h3 style="margin-bottom:10px">✍️ Sign-off</h3><div class="approve-grid">
         ${ps.map((p) => `<div class="approve ${S.approvals[p.idx] ? 'ok' : ''}"><b>${esc(p.name)}</b><div class="role-chips">${p.roles.map((r) => `<span class="chip">${ROLES[r].icon} ${ROLES[r].short}</span>`).join('')}</div>
           <button class="btn small ${S.approvals[p.idx] ? '' : 'primary'}" data-act="approve" data-v="${p.idx}">${S.approvals[p.idx] ? '✓ Approved (undo)' : 'Approve design'}</button></div>`).join('')}
@@ -658,7 +658,7 @@ function renderReport() {
           <tr><td>Orbit</td><td>${entry.orbit}</td><td class="dim">${prev ? prev.orbit : '—'}</td></tr>
           <tr><td>Instruments</td><td data-icons>${entry.insts}</td><td class="dim" data-icons>${prev ? prev.insts : '—'}</td></tr>
         </table>
-        <p class="muted" style="font-size:13px;margin:10px 0 0">There is rarely a single perfect design. Try a different orbit, rocket or payload and compare!</p></div>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">Try another design and compare your score!</p></div>
     </div>
     <div class="start-bar no-print">
       <button class="btn primary big" data-act="redesign">🔧 Improve the design</button>
@@ -680,21 +680,21 @@ function helpModal() {
   modal(`<h2>❓ How to play</h2>
     <div><button class="btn primary" data-act="tour" data-v="main">Start the guided tour</button></div>
     <div class="help-steps">
-      <div><b>1 · Define</b><br>Pick a mission and read its science objectives. ⭐ Primary objectives decide success.</div>
-      <div><b>2 · Design</b><br>Choose orbit, instruments, spacecraft parts, power, comms and rocket. The dashboard updates live.</div>
-      <div><b>3 · Review</b><br>Fix blocking problems (⛔). In team mode every player signs off on the design.</div>
-      <div><b>4 · Fly</b><br>Watch launch, cruise and operations. When emergencies happen, the responsible role decides.</div>
+      <div><b>1 · Pick</b><br>Choose a mission, read the goals.</div>
+      <div><b>2 · Design</b><br>Choose orbit, instruments and parts.</div>
+      <div><b>3 · Check</b><br>Fix the red problems.</div>
+      <div><b>4 · Fly</b><br>Launch, watch, decide.</div>
     </div>
-    <p><b>Scoring (max 1000):</b> 🔬 Science 600 · 🎯 Mission success 150 · ⚙️ Efficiency 150 (reserve, margins, data) · 👥 Role goals & sign-off 100 · ✨ bonus for discoveries and extended missions. Harder levels multiply the ranked score.</p>
-    <p><b>Team mode:</b> 2–4 players share four roles. Each role owns some design steps and has a personal goal. Goals conflict — talk it through!</p>
-    <p class="muted">Tip: every option card shows what would happen if you picked it (→ values). Use them to explore trade-offs.</p>`);
+    <p><b>Score (max 1000):</b> Science 600 · Success 150 · Efficiency 150 · Team 100 · Bonus.</p>
+    <p><b>Team:</b> 2–4 players share the roles. Talk it through!</p>
+    <p class="muted">Tip: "→" values show what happens if you pick that option.</p>`);
 }
 function glossModal() {
   modal(`<h2>📖 Glossary</h2><dl class="gloss">${GLOSSARY.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join('')}</dl>`);
 }
 function shareModal() {
   const code = encodeDesign();
-  modal(`<h2>🔗 Share this design</h2><p class="muted">Send this code to classmates. They paste it into "Load a shared design" on the start screen to open and fly your exact design.</p>
+  modal(`<h2>🔗 Share this design</h2><p class="muted">Send this code to a friend. They open it with "Load a shared design".</p>
     <textarea class="code" readonly id="share-code">${esc(code)}</textarea>
     <div class="row" style="margin-top:8px"><button class="btn small" data-act="copy">📋 Copy</button></div>`);
 }

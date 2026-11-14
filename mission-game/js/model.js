@@ -185,32 +185,32 @@ function computeDesign(sc, d, diffKey) {
   const G = (role, text) => issues.push({ level: 'good', role, text });
   const fmtM = (x) => '$' + Math.round(x) + 'M';
 
-  if (!insts.length) E('SL', 'Hiç bilimsel alet seçilmedi.', 'Aletsiz bir uzay aracı görevin hiçbir sorusunu cevaplayamaz.');
-  if (total > budget) E('MM', `Bütçe ${fmtM(total - budget)} aşıldı.`, 'Uzay ajansları maliyet sınırını aşan görevleri iptal eder. Alet azalt, daha ucuz roket seç veya operasyonu kısalt.');
-  if (cap === 0) E('MM', `${L.name} ${DEST_NAME[launchClass]} ulaşamıyor.`, 'Her roketin yüke verebileceği en yüksek bir enerji vardır. Uzak hedefler daha büyük roket ister.');
-  else if (wet > cap) E('SE', `Çok ağır: ıslak kütle ${Math.round(wet)} kg, roket kapasitesi ${Math.round(cap)} kg.`, 'Kütleyi azalt (daha hafif parçalar, daha az alet, daha verimli motor daha az yakıt ister) ya da daha büyük roket seç.');
-  if (L.onlyOrbit && !L.onlyOrbit.includes(d.orbit)) E('MM', `Paylaşımlı fırlatma sadece ${L.onlyOrbit.map((o) => ORBITS[o].short).join(', ')} yörüngesine gider.`, 'Paylaşımlı yolcu, ana müşteri nereye giderse oraya gider.');
-  if (prop.isp === 0 && insertDv > 0) E('SE', `Bu yörünge ${Math.round(insertDv)} m/s Δv ister, ama itki sistemi yok.`, 'Motor olmadan araç yörüngeye girmek için frenleyemez — yanından geçip gider.');
-  if (struct.maxDry && dry > struct.maxDry) E('SE', `Küçük uydu gövdesi en fazla ${struct.maxDry} kg kuru kütle taşır (seninki ${Math.round(dry)} kg).`, 'Küçük uydu çerçeveleri sert fırlatma sırasında ağır yükler için yeterince sağlam değildir.');
-  if (prop.needsW && (pwr.w1 || 0) < prop.needsW) E('SE', 'İyon motoru ≥ 1 kW güneş paneli gücü ister.', 'İyon motorları iyonları elektrikle hızlandırır — güç yoksa itki de yok.');
+  if (!insts.length) E('SL', 'Hiç bilimsel alet seçilmedi.', 'En az bir alet ekle.');
+  if (total > budget) E('MM', `Bütçe ${fmtM(total - budget)} aşıldı.`, 'Alet azalt, ucuz roket seç ya da görevi kısalt.');
+  if (cap === 0) E('MM', `${L.name} ${DEST_NAME[launchClass]} ulaşamıyor.`, 'Daha büyük bir roket seç.');
+  else if (wet > cap) E('SE', `Çok ağır: ıslak kütle ${Math.round(wet)} kg, roket kapasitesi ${Math.round(cap)} kg.`, 'Alet azalt ya da daha büyük roket seç.');
+  if (L.onlyOrbit && !L.onlyOrbit.includes(d.orbit)) E('MM', `Paylaşımlı fırlatma sadece ${L.onlyOrbit.map((o) => ORBITS[o].short).join(', ')} yörüngesine gider.`, 'Başka yörünge ya da başka roket seç.');
+  if (prop.isp === 0 && insertDv > 0) E('SE', `Bu yörünge ${Math.round(insertDv)} m/s Δv ister, ama itki sistemi yok.`, 'Bir motor seç.');
+  if (struct.maxDry && dry > struct.maxDry) E('SE', `Küçük uydu gövdesi en fazla ${struct.maxDry} kg kuru kütle taşır (seninki ${Math.round(dry)} kg).`, 'Daha büyük gövde seç ya da alet azalt.');
+  if (prop.needsW && (pwr.w1 || 0) < prop.needsW) E('SE', 'İyon motoru ≥ 1 kW güneş paneli gücü ister.', 'Daha büyük panel ya da başka motor seç.');
 
-  if (cap > 0 && wet <= cap && massMargin < 0.1) W('SE', `Kütle payı sadece %${Math.round(massMargin * 100)}.`, 'Uzay araçları geliştirme sırasında neredeyse hep ağırlaşır. Gerçek projeler %10–30 pay bırakır.');
-  if (genAvg < busLoad) W('SE', 'KRİTİK: güç, aracı hayatta tutmaya bile yetmiyor.', `Yörünge ortalaması güç ${Math.round(genAvg)} W ama gövde tek başına ${Math.round(busLoad)} W istiyor. Araç donup ölecek.`);
-  else if (powerMargin < 0) W('SE', `Güç eksik: %${Math.round(-powerMargin * 100)} yetersiz.`, 'Aletler zamanın bir kısmında kapatılmak zorunda kalacak, bu da bilimi azaltır.');
-  else if (powerMargin < 0.15) W('SE', `Güç payı sadece %${Math.round(powerMargin * 100)}.`, 'Güneş panelleri zamanla yıpranır (≈ yılda %2). Pay, görevin sonlarında seni korur.');
-  if (batt.wh < battNeed) W('SE', `Batarya çok küçük: ~${Math.round(battNeed)} Wh gerekli, ${batt.wh} Wh var.`, pwr.rtg ? 'RTG\'ler küçük ama sabit güç verir; her şey aynı anda çalışınca piklerini batarya karşılar.' : 'Tutulmada tüm yükü batarya taşır. Binlerce döngüye dayanması için bataryalar her döngüde sadece ~%40 boşaltılır.');
-  if (genDay > 0 && dataRatio < 1) W('CL', `Veri bağlantısı üretilen verinin sadece %${Math.round(dataRatio * 100)} kadarını taşıyabiliyor.`, `${sc.distAU >= 0.01 ? sc.distAU + ' AU uzaklıkta' : 'Bu uzaklıkta'} bağlantı günde ${hours.toFixed(1)} saat boyunca ${fmtRate(rate)} veriyor. Daha büyük anten, daha büyük yer istasyonu veya daha az veri üreten aletler yardımcı olur.`);
-  if (pointOK < 1) W('CL', 'Anten, yönelim sisteminin sağlayabileceğinden daha hassas hedefleme istiyor.', 'Yüksek kazançlı çanakların ışını dardır: Dünya\'ya tam çevrilmezse sinyal kaybolur.');
-  if (adcs.nearEarth && sc.body !== 'Earth') W('SE', 'Manyetik tork çubukları Dünya\'nın manyetik alanından uzakta neredeyse çalışmaz.', 'Yönelim çok zayıf olacak: görüntüleme ve antenler ciddi zarar görür.');
-  if (missionDose > radTol) W('SE', `Radyasyon: ${Math.round(missionDose)} krad bekleniyor, bilgisayar toleransı ${radTol} krad.`, 'Tolerans aşılınca elektronik giderek daha sık arızalanır. Kalkan ekle ya da sertleştirilmiş bilgisayar seç.');
-  if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `İtki yok: yörünge ~${Math.round(orbit.natLife * 12)} ay sonra çöküyor.`, 'Yörünge koruma ateşlemeleri olmadan sürtünme veya kütle çekim bozulmaları görevi erken bitirir.');
-  if (late > 0) W('MM', sc.window ? `Geliştirme ${late} ay gecikti → fırlatma penceresi kaçıyor, ${delay} ay bekleme.` : `Geliştirme takvimin ${late} ay gerisinde.`, `Her gecikme ayı ekibin maaşını ödemeye devam etmek demek (≈ ayda ${fmtM(marching)}).`);
+  if (cap > 0 && wet <= cap && massMargin < 0.1) W('SE', `Kütle payı sadece %${Math.round(massMargin * 100)}.`, 'Araçlar yapım sırasında ağırlaşır; biraz pay bırak.');
+  if (genAvg < busLoad) W('SE', 'KRİTİK: güç, aracı hayatta tutmaya bile yetmiyor.', 'Daha büyük güç kaynağı seç.');
+  else if (powerMargin < 0) W('SE', `Güç eksik: %${Math.round(-powerMargin * 100)} yetersiz.`, 'Aletler bazen kapanır, bilim azalır.');
+  else if (powerMargin < 0.15) W('SE', `Güç payı sadece %${Math.round(powerMargin * 100)}.`, 'Paneller zamanla zayıflar; biraz pay iyi olur.');
+  if (batt.wh < battNeed) W('SE', `Batarya çok küçük: ~${Math.round(battNeed)} Wh gerekli, ${batt.wh} Wh var.`, pwr.rtg ? 'Daha büyük pil gerekli.' : 'Gölgede her şey pille çalışır; daha büyük pil gerekli.');
+  if (genDay > 0 && dataRatio < 1) W('CL', `Verinin sadece %${Math.round(dataRatio * 100)} kadarı gönderilebiliyor.`, 'Daha büyük anten seç ya da alet azalt.');
+  if (pointOK < 1) W('CL', 'Anten için yönelim yetersiz.', 'Çanak anten Dünya\'ya tam dönmeli.');
+  if (adcs.nearEarth && sc.body !== 'Earth') W('SE', 'Bu yön sistemi Dünya\'dan uzakta çalışmaz.', 'Görüntü ve anten çok zayıflar.');
+  if (missionDose > radTol) W('SE', `Radyasyon: ${Math.round(missionDose)} krad bekleniyor, bilgisayar toleransı ${radTol} krad.`, 'Kalkan ekle ya da dayanıklı bilgisayar seç.');
+  if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `İtki yok: yörünge ~${Math.round(orbit.natLife * 12)} ay sonra çöküyor.`, 'Bir motor ekle.');
+  if (late > 0) W('MM', sc.window ? `Geliştirme ${late} ay gecikti → fırlatma penceresi kaçıyor, ${delay} ay bekleme.` : `Geliştirme takvimin ${late} ay gerisinde.`, `Her gecikme ayı ${fmtM(marching)} tutar.`);
   for (const o of objectives) {
     if (o.primary && o.cap < 0.5) W('SL', `"${o.name}" ana hedefi için zayıf yeterlilik (%${Math.round(o.cap * 100)}).`, 'İşe yarayan aletler: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
-    if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" ${o.months} ay ister; görev planı ${months} ay.`, 'Mevsimler gibi bazı olaylar ancak uzun sürede incelenebilir.');
+    if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" ${o.months} ay ister; görev planı ${months} ay.`, 'Görev süresini uzat.');
   }
-  if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Yedek bütçe sadece %${Math.round(reservePct * 100)}.`, 'Yedekler uçuş sırasındaki arızaları karşılar. Yedek yoksa sorunlar görevi kısaltmaya zorlar.');
-  if (L.rel - diff.relPenalty < 0.95) W('MM', `Fırlatma güvenilirliği %${Math.round((L.rel - diff.relPenalty) * 100)}.`, 'Az denenmiş roketler daha sık başarısız olur. Tasarruf bu riske değer mi?');
+  if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Yedek bütçe sadece %${Math.round(reservePct * 100)}.`, 'Yedek para, uçuştaki arızaları karşılar.');
+  if (L.rel - diff.relPenalty < 0.95) W('MM', `Fırlatma güvenilirliği %${Math.round((L.rel - diff.relPenalty) * 100)}.`, 'Bu roket daha sık başarısız olur.');
 
   if (!issues.some((i) => i.level !== 'good')) G('ALL', 'Tüm alt sistemler sınırlar içinde — harika mühendislik!');
   if (powerMargin >= 0.15 && powerMargin < 1) G('SE', 'Sağlıklı güç payı.');

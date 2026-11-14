@@ -65,12 +65,12 @@ const EVENTS = [
   {
     id: 'solar_storm', role: 'SE', phases: ['cruise', 'ops'], weight: 3, max: 2,
     title: '☀️ Güneş fırtınası geliyor',
-    text: (s) => `Güneş'ten kopan bir koronal kütle atımı birkaç saat içinde araca çarpacak. Yüksek enerjili parçacıklar bitleri bozabilir veya elektroniğe zarar verebilir. Aracında "${opt('computer', s.R.d.computer).name}" bilgisayar ve "${opt('shielding', s.R.d.shielding).name}" radyasyon koruması var.`,
-    learn: 'Gerçek uzay araçları fırtınalarda genellikle "güvenli moda" geçer: aletler kapanır, sadece temel sistemler çalışır.',
+    text: (s) => `Güneş'ten gelen bir parçacık fırtınası birkaç saat içinde araca çarpacak. Elektroniğe zarar verebilir.`,
+    learn: 'Gerçek uydular fırtınada "güvenli moda" geçer: aletler kapanır.',
     choices: [
       { label: 'Güvenli moda geç', hint: 'Yaklaşık iki haftalık bilim kaybı. Risk yok.',
         apply: (s) => { addTemp(s, 1, 0.5); return 'Güvenli mod: fırtına zararsız geçti; iki haftalık gözlem kaybedildi.'; } },
-      { label: 'Gözleme devam et', hint: 'Riskli — elektroniğinin radyasyona ne kadar dayanıklı olduğuna bağlı.',
+      { label: 'Gözleme devam et', hint: 'Riskli: elektroniğine bağlı.',
         apply: (s) => {
           const base = { cots: 0.55, radtol: 0.2, radhard: 0.05 }[s.R.d.computer] * Math.sqrt(opt('shielding', s.R.d.shielding).factor);
           if (rand() < base) return hitComputer(s, 'Fırtına uçuş bilgisayarını çökertti.');
@@ -88,8 +88,8 @@ const EVENTS = [
       return { id, cost: Math.round(3 + INSTRUMENTS[id].cost * TIER[s.instOn[id]].c * 0.15) };
     },
     title: (s, c) => `⚠️ Alet arızası: ${instName(c.id)}`,
-    text: (s, c) => `"${instName(c.id)}" gürültülü, bozuk veri gönderiyor. Mühendisler bir dedektörün veya elektronik kartın sorun çıkardığını düşünüyor.`,
-    learn: 'Yer ekipleri sorunları çoğu zaman yeni yazılım yükleyerek veya çalışma modunu değiştirerek uzaktan çözebilir — ama araştırma zaman ve para ister.',
+    text: (s, c) => `"${instName(c.id)}" bozuk veri gönderiyor.`,
+    learn: 'Çoğu sorun, Dünya\'dan yeni yazılım gönderilerek çözülür.',
     choices: [
       { label: 'Araştırma başlat', hint: (s, c) => `Yedekten $${c.cost}M. ~%80 tam onarım şansı.`,
         can: (s, c) => s.reserve >= c.cost,
@@ -100,7 +100,7 @@ const EVENTS = [
         } },
       { label: 'Düşük kalitede çalıştır', hint: 'Ücretsiz, ama alet ~%60 kalite verir.',
         apply: (s, c) => { s.quality[c.id] = 0.6; return `"${instName(c.id)}" düşük kalitede çalışmaya devam ediyor.`; } },
-      { label: 'Kapat', hint: 'Gücünü ve veri payını diğer aletlere bırakır.',
+      { label: 'Kapat', hint: 'Gücü diğer aletlere kalır.',
         apply: (s, c) => { s.instOn[c.id] = 0; return `"${instName(c.id)}" kapatıldı. Diğer aletler daha fazla güç ve bant genişliği alıyor.`; } },
     ],
   },
@@ -109,7 +109,7 @@ const EVENTS = [
     setup: (s) => ({ amount: Math.max(2, Math.round(s.R.budget * 0.05)) }),
     title: '🏛️ Ajans bütçesinde kesinti',
     text: (s, c) => `Uzay ajansının bütçesi azaltıldı. Görevin $${c.amount}M geri vermek zorunda.`,
-    learn: 'Görevler her yıl para için yarışır. Yedek bütçe, görevi böyle kesintilere karşı korur.',
+    learn: 'Yedek para, görevi bu tür kesintilere karşı korur.',
     choices: [
       { label: 'Yedekten öde', hint: (s) => `Yedek: $${Math.round(s.reserve)}M`, can: (s, c) => s.reserve >= c.amount,
         apply: (s, c) => { s.reserve -= c.amount; return 'Kesinti yedekten karşılandı. Bilim planlandığı gibi sürüyor.'; } },
@@ -122,8 +122,8 @@ const EVENTS = [
   {
     id: 'debris', role: 'MM', phases: ['ops'], weight: 2, max: 2, cond: (s) => EARTH_LOW.includes(s.R.d.orbit),
     title: '💥 Çarpışma uyarısı',
-    text: () => 'Uzay gözetim sistemleri 2 gün içinde bir uzay enkazı parçasıyla yakın geçiş öngörüyor. Çarpışma olasılığı: yaklaşık 100\'de 1.',
-    learn: 'Dünya yörüngesinde on binlerce enkaz parçası var. Operatörler risk 10.000\'de 1\'i aşınca kaçınma manevrası yapar.',
+    text: () => 'Bir uzay çöpü 2 gün içinde çok yakından geçecek. Çarpma ihtimali 100\'de 1.',
+    learn: 'Dünya\'nın çevresinde on binlerce uzay çöpü dolaşıyor.',
     choices: [
       { label: 'Kaçınma manevrası yap', hint: '~2 m/s yakıt harcar.', can: (s) => s.R.d.propulsion !== 'none' && s.dvLeft >= 2,
         apply: (s) => { s.dvLeft -= 2; return 'Küçük bir ateşleme aracı güvenle yoldan çekti.'; } },
@@ -134,8 +134,8 @@ const EVENTS = [
   {
     id: 'ground_outage', role: 'CL', phases: ['ops'], weight: 2, max: 2,
     title: '📡 Yer istasyonu arızası',
-    text: () => 'Bir fırtına ana yer antenine zarar verdi. İki hafta boyunca devre dışı kalacak.',
-    learn: 'Araç üstü depolama, araç Dünya ile konuşamazken gözleme devam etmesini sağlar — belleği dolana kadar.',
+    text: () => 'Fırtına yer antenini bozdu. İki hafta çalışmayacak.',
+    learn: 'Araç, belleği dolana kadar veriyi kendinde saklayabilir.',
     choices: [
       { label: 'Yedek anten kirala', hint: '$2M. Veri kaybı yok.', can: (s) => s.reserve >= 2,
         apply: (s) => { s.reserve -= 2; return 'Yedek antenler veri akışını sürdürdü.'; } },
@@ -146,8 +146,8 @@ const EVENTS = [
   {
     id: 'conjunction', role: 'CL', phases: ['ops'], weight: 2, max: 2, cond: (s) => s.sc.distAU > 1,
     title: '🌞 Güneş kavuşumu',
-    text: () => 'Güneş, Dünya ile aracın arasına giriyor. Yaklaşık iki hafta boyunca Güneş\'in radyo gürültüsü tüm iletişimi kesecek.',
-    learn: 'Güneş kavuşumları Mars ve dış gezegen görevlerinde düzenli olarak yaşanır. Ekipler komutları önceden yükler ve riskli işleri durdurur.',
+    text: () => 'Güneş, Dünya ile aracın arasına giriyor. İki hafta iletişim olmayacak.',
+    learn: 'Bu, Mars görevlerinde düzenli olarak yaşanır.',
     choices: [
       { label: 'Otomatik gözleme devam et', hint: (s) => `Veriyi araçta sakla (${fmtData(s.R.data.storage)}). Taşan veri kaybolur.`,
         apply: (s) => { s.linkMult = 0.5; if (s.R.d.computer === 'cots' && rand() < 0.3) return hitComputer(s, 'İletişim yokken bir yazılım hatası fark edilmedi.'); return 'Araç önceden yüklenen komut dizisini kusursuz uyguladı.'; } },
@@ -159,7 +159,7 @@ const EVENTS = [
     id: 'discovery', role: 'SL', phases: ['ops'], weight: 1.5, max: 1,
     title: '✨ Beklenmedik fırsat!',
     text: (s) => s.sc.discovery,
-    learn: 'Esnek görevler sürprizlere tepki verebilir — ama planı değiştirmek yakıt, para ve zaman ister.',
+    learn: 'Planı değiştirmek yakıt ve para ister.',
     choices: [
       { label: 'Aracı yeni hedefe çevir', hint: '$2M ve ~5 m/s yakıt.', can: (s) => s.reserve >= 2 && s.dvLeft >= 5 && s.R.d.propulsion !== 'none',
         apply: (s) => {
@@ -174,10 +174,10 @@ const EVENTS = [
   {
     id: 'dust_storm', role: 'SL', phases: ['ops'], weight: 2, max: 1, cond: (s) => s.sc.id === 'mars',
     title: '🌪️ Küresel toz fırtınası',
-    text: () => 'Bir toz fırtınası tüm gezegeni sarıyor. Yüzey aylarca görünmeyecek.',
-    learn: 'Mars\'ın küresel toz fırtınaları yüzeyi gizler — ama iklim bilimcilerin tam da incelemek istediği şey budur.',
+    text: () => 'Toz fırtınası tüm gezegeni sardı. Yüzey aylarca görünmeyecek.',
+    learn: 'Bu fırtınalar iklim bilimciler için büyük fırsattır.',
     choices: [
-      { label: 'Fırtınaya odaklan', hint: 'Atmosfer/termal aletlerin varsa hava bilimini artırır.',
+      { label: 'Fırtınaya odaklan', hint: 'Hava aletlerin varsa bilim artar.',
         apply: (s) => {
           const has = s.instOn.atmo || s.instOn.thermal || s.instOn.multispec;
           if (has) { s.progress.weather += 2; s.bonus += 20; return 'On yılda bir görülecek bir fırtına veri seti! Hava bilimi güçlendi.'; }
@@ -189,10 +189,10 @@ const EVENTS = [
   {
     id: 'rad_spike', role: 'SE', phases: ['ops'], weight: 2, max: 1, cond: (s) => s.sc.id === 'europa',
     title: '☢️ Radyasyon tahminden güçlü',
-    text: () => 'Ölçümler, Jüpiter\'in radyasyon kuşaklarının modellerin öngördüğünden daha yoğun olduğunu gösteriyor.',
-    learn: 'Jüpiter\'deki en büyük tehlike radyasyondur. Görevler en kötü bölgelerde geçen süreyi sınırlayacak rotalar planlar.',
+    text: () => 'Jüpiter\'in radyasyonu beklenenden güçlü çıktı.',
+    learn: 'Jüpiter\'deki en büyük tehlike radyasyondur.',
     choices: [
-      { label: 'Rotayı değiştir', hint: 'Görevin geri kalanında doz −%30, bilim −%10.',
+      { label: 'Rotayı değiştir', hint: 'Radyasyon −%30, bilim −%10.',
         apply: (s) => { s.doseMult *= 0.7; s.opsEff *= 0.9; return 'Yeni rota en sert bölgelerden kaçınıyor.'; } },
       { label: 'Göze al', hint: 'Yaklaşık yarım yıllık ek doz al.', apply: (s) => { s.dose += s.R.rad.doseYr * 0.5; return 'Araç ağır bir ek doz aldı.'; } },
     ],
@@ -200,8 +200,8 @@ const EVENTS = [
   {
     id: 'aerobrake', role: 'SE', phases: ['arrival'], weight: 5, max: 1, cond: (s) => s.R.dv.aero,
     title: '🔥 Atmosferik frenleme ısınma alarmı',
-    text: () => 'Mars\'ın üst atmosferi beklenmedik şekilde şişti. Son frenleme geçişi güneş panellerini sınırlarına kadar ısıttı.',
-    learn: 'Atmosferik frenleme yüzlerce kilo yakıt kazandırır, ama atmosferden her geçiş risklidir.',
+    text: () => 'Mars\'ın havası beklenenden kalın. Son geçişte paneller çok ısındı.',
+    learn: 'Havada sürtünerek yavaşlamak yakıt kazandırır ama risklidir.',
     choices: [
       { label: 'En alçak noktayı yükselt', hint: '+2 ay frenleme ve ~15 m/s yakıt.',
         apply: (s) => { s.arrivalLeft += 2; s.dvLeft -= 15; return 'Daha yumuşak geçişler: frenleme uzun sürdü ama güvenli kaldı.'; } },
@@ -212,12 +212,12 @@ const EVENTS = [
   {
     id: 'wheel', role: 'SE', phases: [], weight: 0, max: 9, forced: true,
     title: '⚙️ Reaksiyon tekeri arızası',
-    text: () => 'Reaksiyon tekerlerinden biri dönmeyi bıraktı. O olmadan araç hassas yönelemiyor.',
-    learn: 'Kepler ve Hubble teleskopları da reaksiyon tekeri kaybetti; yaratıcı mühendislik onları çalışır tuttu.',
+    text: () => 'Yön veren tekerlerden biri durdu. Araç artık tam dönemiyor.',
+    learn: 'Hubble da aynı arızayı yaşadı ve çalışmaya devam etti.',
     choices: [
-      { label: 'Yönelimi iticilerle koru', hint: 'Hassasiyet korunur ama her ay ek yakıt harcanır.', can: (s) => s.R.d.propulsion !== 'none' && s.dvLeft > 10,
+      { label: 'Yönelimi iticilerle koru', hint: 'Hassasiyet kalır, her ay yakıt gider.', can: (s) => s.R.d.propulsion !== 'none' && s.dvLeft > 10,
         apply: (s) => { s.extraSk += 25; return 'İticiler artık yönelime yardım ediyor. Yakıt daha erken bitecek.'; } },
-      { label: 'Kaba yönelimi kabul et', hint: 'Görüntüleme ve yüksek kazançlı anten performansı düşer.',
+      { label: 'Kaba yönelimi kabul et', hint: 'Görüntü ve anten zayıflar.',
         apply: (s) => { s.level = Math.min(s.level, 1); return 'Araç kaba yönelimle devam ediyor.'; } },
     ],
   },
@@ -225,8 +225,8 @@ const EVENTS = [
     id: 'extended', role: 'MM', phases: [], weight: 0, max: 9, forced: true,
     setup: (s) => ({ cost: Math.round((s.sc.opsPerYear + opt('ground', s.R.d.ground).perYear) * 10) / 10 }),
     title: '🎉 Ana görev tamamlandı!',
-    text: (s, c) => `Araç hâlâ sağlıklı. Ajans $${c.cost}M operasyon parasıyla 12 aylık uzatılmış görev öneriyor.`,
-    learn: 'Birçok ünlü görev (Opportunity, Voyager, Hubble) bilimin çoğunu uzatılmış görevlerde üretti.',
+    text: (s, c) => `Araç hâlâ sağlam. $${c.cost}M karşılığında görev 12 ay uzatılabilir.`,
+    learn: 'Voyager ve Hubble bilimin çoğunu uzatılan sürede üretti.',
     choices: [
       { label: '12 ay uzat', hint: (s, c) => `$${c.cost}M · yedek $${Math.round(s.reserve)}M · yakıt gerekir.`,
         can: (s, c) => (s.reserve >= c.cost || s.R.budget === Infinity) && (s.R.orbit.skDv === 0 || s.dvLeft >= s.R.orbit.skDv * 0.8 || s.R.d.propulsion === 'none'),
@@ -458,30 +458,30 @@ function finalScore(sim, approvals) {
 function buildLessons(sim, score) {
   const R = sim.R, sc = sim.sc, L = [];
   const add = (type, title, text) => L.push({ type, title, text });
-  if (sim.endReason === 'launch') add('bad', 'Roket başarısız oldu', `${R.L.name} %${Math.round((R.L.rel - R.diff.relPenalty) * 100)} başarı oranına sahipti. Güvenilir roketler bile bazen başarısız olur — bu yüzden pahalı görevler en kanıtlanmış araçları seçer ve sigorta yaptırır. Aynı tasarımı tekrar uçurmayı dene.`);
-  if (sim.endReason === 'power') add('bad', 'Yetersiz güç', `${sc.bodyTr} çevresinde güneş ışığı, Dünya'dakinin yalnızca %${Math.round(100 / (sc.sunAU * sc.sunAU))} kadarı (ters-kare yasası). Aracın ${Math.round(sim.lastPower)} W üretti ama sadece bilgisayar, yönelim ve ısıtıcılar için ${Math.round(R.power.busLoad)} W gerekiyordu.`);
-  if (sim.endReason === 'decay') add('bad', 'Yörünge çöktü', `${R.orbit.short} yılda ${R.orbit.skDv} m/s yörünge koruma ister. ${R.d.propulsion === 'none' ? 'İtki sistemi olmadan buna karşı koymanın yolu yoktu.' : 'Yakıtın bitti. Daha büyük yakıt yedeği veya daha verimli motor görevi uzatırdı.'}`);
-  if (sim.endReason === 'failure') add('bad', 'Tek arıza noktası', 'Yedeği olmayan bir parçanın arızası görevi bitirdi. Yedeklilik kütle ve maliyet ekler ama tam da buna karşı korur.');
-  if (sim.endReason === 'collision') add('bad', 'Uzay enkazı', 'Çarpışma riskini kabul etmek bazen pahalıya patlar. İtki sistemi enkazdan kaçmanı sağlar — Dünya yörüngesinde bile taşımak için önemli bir neden.');
+  if (sim.endReason === 'launch') add('bad', 'Roket başarısız oldu', `Bu roketin başarı şansı %${Math.round((R.L.rel - R.diff.relPenalty) * 100)} idi. Bazen olur, tekrar dene.`);
+  if (sim.endReason === 'power') add('bad', 'Yetersiz güç', `${sc.bodyTr}'da güneş zayıf. Araç ${Math.round(sim.lastPower)} W üretti, ${Math.round(R.power.busLoad)} W gerekiyordu.`);
+  if (sim.endReason === 'decay') add('bad', 'Yörünge çöktü', `${R.d.propulsion === 'none' ? 'Motor olmadığı için yörünge korunamadı.' : 'Yakıt bitti. Daha çok yakıt görevi uzatırdı.'}`);
+  if (sim.endReason === 'failure') add('bad', 'Tek arıza noktası', 'Yedeği olmayan bir parça bozuldu. Yedek parça bunu önlerdi.');
+  if (sim.endReason === 'collision') add('bad', 'Uzay enkazı', 'Uzay çöpü çarptı. Motor olsaydı kaçabilirdin.');
 
   if (sim.opsCounted > 0) {
     const pf = sim.pfSum / sim.opsCounted;
-    if (pf < 0.95) add('warn', 'Aletler güç sıkıntısı çekti', `Ortalamada aletlerin ihtiyaç duyduğu gücün sadece %${Math.round(pf * 100)} kadarı vardı${R.power.batt < R.power.battNeed ? ', kısmen bataryanın tutulmaları karşılayamaması yüzünden' : ''}. Daha büyük güneş panelleri, daha büyük batarya veya daha az güç tüketen aletler yardımcı olurdu.`);
+    if (pf < 0.95) add('warn', 'Aletler güç sıkıntısı çekti', `Aletler gücün sadece %${Math.round(pf * 100)} kadarını alabildi. Daha büyük panel ya da pil yardımcı olurdu.`);
     if (score.lostFrac > 0.1 || sim.dfSum / sim.opsCounted < 0.9) {
       const sent = sim.dataGen > 0 ? Math.round(100 * sim.dataDown / sim.dataGen) : 0;
-      add('warn', 'Veri uzayda takıldı', `Toplanan verinin sadece %${sent} kadarı Dünya'ya ulaştı. Bağlantın günde ${R.data.hours.toFixed(1)} saat boyunca ${fmtRate(currentLinkRate(sim))} sağladı. Radyo sinyalleri uzaklığın karesiyle zayıflar — daha büyük çanak, Ka-bandı veya Derin Uzay Ağı daha çok veri taşırdı.`);
+      add('warn', 'Veri uzayda takıldı', `Verinin sadece %${sent} kadarı Dünya'ya ulaştı. Daha büyük anten daha çok veri taşırdı.`);
     }
-    if (sim.dose > R.rad.tol) add('warn', 'Radyasyon bedelini aldı', `Elektronik ${R.rad.tol} krad toleransa karşı ${Math.round(sim.dose)} krad doz aldı. Sert ortamlarda kalkan ve radyasyona sertleştirilmiş parçalar şarttır.`);
+    if (sim.dose > R.rad.tol) add('warn', 'Radyasyon bedelini aldı', `Elektronik fazla radyasyon aldı. Kalkan ve dayanıklı parça gerekirdi.`);
   }
   for (const o of score.objs) {
-    if (o.cap < 0.4) add('warn', `"${o.name}" için zayıf aletler`, `Aletlerin bu hedefin ihtiyacının sadece %${Math.round(o.cap * 100)} kadarını karşılayabildi. Daha uygun olanlar: ${Object.keys(o.needs).map((k) => INSTRUMENTS[k].icon + ' ' + INSTRUMENTS[k].name).join(', ')}.`);
-    else if (o.score < o.cap * 0.8 && sim.endReason !== 'launch') add('info', `"${o.name}" için yeterli süre yoktu`, `Bu hedef ${o.months} aylık iyi gözlem istiyordu. Daha uzun operasyon (veya daha az kesinti) onu tamamlardı.`);
+    if (o.cap < 0.4) add('warn', `"${o.name}" için zayıf aletler`, `Daha uygun aletler: ${Object.keys(o.needs).map((k) => INSTRUMENTS[k].icon + ' ' + INSTRUMENTS[k].name).join(', ')}.`);
+    else if (o.score < o.cap * 0.8 && sim.endReason !== 'launch') add('info', `"${o.name}" için yeterli süre yoktu`, `${o.months} ay gözlem gerekiyordu. Görevi uzat.`);
   }
-  if (R.level < 2 && R.insts.some((i) => i.I.fine)) add('warn', 'Bulanık yönelim', 'Yüksek çözünürlüklü aletler reaksiyon tekerleri ve yıldız izleyici ister. Kaba yönelim görüntüleri bulanıklaştırdı.');
-  if (R.schedule.delay > 0) add('info', 'Takvim kayması', `Geliştirme ${R.schedule.deadline} aylık plana karşı ${R.schedule.dev} ay sürdü ve maliyete ${fmtMoney(R.schedule.delay * R.schedule.marching)} ekledi.`);
-  if (sim.extended) add('good', 'Uzatılmış görev', `Sağlıklı aracın ${sim.extended} yıl uzatılmış görev kazandı — iyi paylar kendini öder.`);
-  if (sim.spares < opt('redundancy', R.d.redundancy).spares) add('good', 'Yedeklilik işe yaradı', 'Arızalardan sonra yedek birimler devreye girerek görevi hayatta tuttu.');
-  if (R.power.margin >= 0.15 && R.mass.margin >= 0.1 && R.data.ratio >= 1) add('good', 'Dengeli tasarım', 'Güç, kütle ve verinin hepsinde sağlıklı paylar vardı. Gerçek uçuş projeleri sürprizlerden böyle sağ çıkar.');
-  if (!L.length) add('good', 'Sorunsuz uçuş', 'Her şey plana göre gitti. Aynı bilimi daha az parayla elde edebilir misin?');
+  if (R.level < 2 && R.insts.some((i) => i.I.fine)) add('warn', 'Bulanık yönelim', 'Görüntüler bulanık çıktı; daha iyi yön sistemi gerekirdi.');
+  if (R.schedule.delay > 0) add('info', 'Takvim kayması', `Yapım gecikti, ${fmtMoney(R.schedule.delay * R.schedule.marching)} fazla tuttu.`);
+  if (sim.extended) add('good', 'Uzatılmış görev', `Araç sağlam kaldı, görev ${sim.extended} yıl uzadı.`);
+  if (sim.spares < opt('redundancy', R.d.redundancy).spares) add('good', 'Yedeklilik işe yaradı', 'Yedek parçalar görevi kurtardı.');
+  if (R.power.margin >= 0.15 && R.mass.margin >= 0.1 && R.data.ratio >= 1) add('good', 'Dengeli tasarım', 'Güç, ağırlık ve veri dengeliydi.');
+  if (!L.length) add('good', 'Sorunsuz uçuş', 'Her şey plana göre gitti. Daha ucuza yapabilir misin?');
   return L;
 }

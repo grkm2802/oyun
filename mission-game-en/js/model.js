@@ -185,32 +185,32 @@ function computeDesign(sc, d, diffKey) {
   const G = (role, text) => issues.push({ level: 'good', role, text });
   const fmtM = (x) => '$' + Math.round(x) + 'M';
 
-  if (!insts.length) E('SL', 'No science instruments selected.', 'A spacecraft without instruments cannot answer any of the mission\'s questions.');
-  if (total > budget) E('MM', `Over budget by ${fmtM(total - budget)}.`, 'Space agencies cancel missions that exceed their cost cap. Cut instruments, choose a cheaper rocket, or shorten operations.');
-  if (cap === 0) E('MM', `The ${L.name.toLowerCase()} cannot reach ${DEST_NAME[launchClass]}.`, 'Each rocket has a maximum energy it can give a payload. Farther destinations need bigger rockets.');
-  else if (wet > cap) E('SE', `Too heavy: ${Math.round(wet)} kg wet vs ${Math.round(cap)} kg rocket capacity.`, 'Reduce mass (lighter parts, fewer instruments, more efficient engine needs less propellant) or pick a bigger rocket.');
-  if (L.onlyOrbit && !L.onlyOrbit.includes(d.orbit)) E('MM', `Rideshare only goes to ${L.onlyOrbit.map((o) => ORBITS[o].short).join(', ')}.`, 'A rideshare passenger goes where the main customer goes.');
-  if (prop.isp === 0 && insertDv > 0) E('SE', `This orbit needs ${Math.round(insertDv)} m/s of Δv, but there is no propulsion.`, 'Without an engine the spacecraft cannot brake into orbit — it would fly straight past.');
-  if (struct.maxDry && dry > struct.maxDry) E('SE', `Small-sat bus is limited to ${struct.maxDry} kg dry (you have ${Math.round(dry)} kg).`, 'Small-sat frames are not strong enough for heavy payloads during the violent launch.');
-  if (prop.needsW && (pwr.w1 || 0) < prop.needsW) E('SE', 'Ion engine needs ≥ 1 kW solar array power.', 'Ion engines accelerate ions with electricity — no power, no thrust.');
+  if (!insts.length) E('SL', 'No science instruments selected.', 'Add at least one instrument.');
+  if (total > budget) E('MM', `Over budget by ${fmtM(total - budget)}.`, 'Cut instruments, pick a cheaper rocket or shorten the mission.');
+  if (cap === 0) E('MM', `The ${L.name.toLowerCase()} cannot reach ${DEST_NAME[launchClass]}.`, 'Pick a bigger rocket.');
+  else if (wet > cap) E('SE', `Too heavy: ${Math.round(wet)} kg wet vs ${Math.round(cap)} kg rocket capacity.`, 'Remove instruments or pick a bigger rocket.');
+  if (L.onlyOrbit && !L.onlyOrbit.includes(d.orbit)) E('MM', `Rideshare only goes to ${L.onlyOrbit.map((o) => ORBITS[o].short).join(', ')}.`, 'Pick another orbit or another rocket.');
+  if (prop.isp === 0 && insertDv > 0) E('SE', `This orbit needs ${Math.round(insertDv)} m/s of Δv, but there is no propulsion.`, 'Pick an engine.');
+  if (struct.maxDry && dry > struct.maxDry) E('SE', `Small-sat bus is limited to ${struct.maxDry} kg dry (you have ${Math.round(dry)} kg).`, 'Pick a bigger frame or fewer instruments.');
+  if (prop.needsW && (pwr.w1 || 0) < prop.needsW) E('SE', 'Ion engine needs ≥ 1 kW solar array power.', 'Pick bigger panels or another engine.');
 
-  if (cap > 0 && wet <= cap && massMargin < 0.1) W('SE', `Mass margin only ${Math.round(massMargin * 100)}%.`, 'Spacecraft almost always grow heavier during development. Real projects keep 10–30% margin.');
-  if (genAvg < busLoad) W('SE', 'CRITICAL: power cannot even keep the spacecraft alive.', `Orbit-average power is ${Math.round(genAvg)} W but the bus alone needs ${Math.round(busLoad)} W. The spacecraft will freeze and die.`);
-  else if (powerMargin < 0) W('SE', `Power-negative: ${Math.round(-powerMargin * 100)}% short.`, 'Instruments will have to be switched off part of the time, reducing science.');
-  else if (powerMargin < 0.15) W('SE', `Power margin only ${Math.round(powerMargin * 100)}%.`, 'Solar panels degrade over time (≈2%/year). A margin protects you late in the mission.');
-  if (batt.wh < battNeed) W('SE', `Battery too small: needs ~${Math.round(battNeed)} Wh, has ${batt.wh} Wh.`, pwr.rtg ? 'RTGs give a small steady power; batteries cover peaks when everything runs at once.' : 'In eclipse the battery carries every load. Batteries are only discharged ~40% per cycle to survive thousands of cycles.');
-  if (genDay > 0 && dataRatio < 1) W('CL', `Downlink carries only ${Math.round(dataRatio * 100)}% of the data generated.`, `At ${sc.distAU >= 0.01 ? sc.distAU + ' AU' : 'this distance'} the link gives ${fmtRate(rate)} for ${hours.toFixed(1)} h/day. Bigger antenna, larger ground station, or fewer data-hungry instruments help.`);
-  if (pointOK < 1) W('CL', 'Antenna needs better pointing than the attitude control provides.', 'High-gain dishes have a narrow beam: if they are not aimed at Earth, the signal is lost.');
-  if (adcs.nearEarth && sc.body !== 'Earth') W('SE', 'Magnetorquers barely work away from Earth\'s magnetic field.', 'Pointing will be very poor: imaging and antennas suffer badly.');
-  if (missionDose > radTol) W('SE', `Radiation: ${Math.round(missionDose)} krad expected vs ${radTol} krad computer tolerance.`, 'After the tolerance is exceeded, electronics fail more and more often. Add shielding or a hardened computer.');
-  if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `No propulsion: orbit decays after ~${Math.round(orbit.natLife * 12)} months.`, 'Drag or gravity perturbations end the mission early without station-keeping burns.');
-  if (late > 0) W('MM', sc.window ? `Development is ${late} months late → miss the launch window, wait ${delay} months.` : `Development is ${late} months behind schedule.`, `Every month of delay keeps the team employed (≈${fmtM(marching)}/month).`);
+  if (cap > 0 && wet <= cap && massMargin < 0.1) W('SE', `Mass margin only ${Math.round(massMargin * 100)}%.`, 'Craft get heavier while being built; leave some room.');
+  if (genAvg < busLoad) W('SE', 'CRITICAL: power cannot even keep the spacecraft alive.', 'Pick a bigger power source.');
+  else if (powerMargin < 0) W('SE', `Power-negative: ${Math.round(-powerMargin * 100)}% short.`, 'Instruments will sometimes switch off, less science.');
+  else if (powerMargin < 0.15) W('SE', `Power margin only ${Math.round(powerMargin * 100)}%.`, 'Panels weaken over time; a little spare helps.');
+  if (batt.wh < battNeed) W('SE', `Battery too small: needs ~${Math.round(battNeed)} Wh, has ${batt.wh} Wh.`, pwr.rtg ? 'A bigger battery is needed.' : 'In shadow everything runs on battery; get a bigger one.');
+  if (genDay > 0 && dataRatio < 1) W('CL', `Only ${Math.round(dataRatio * 100)}% of the data can be sent.`, 'Pick a bigger antenna or fewer instruments.');
+  if (pointOK < 1) W('CL', 'Pointing is not good enough for this antenna.', 'A dish must point right at Earth.');
+  if (adcs.nearEarth && sc.body !== 'Earth') W('SE', 'This steering system does not work far from Earth.', 'Images and antenna will be poor.');
+  if (missionDose > radTol) W('SE', `Radiation: ${Math.round(missionDose)} krad expected vs ${radTol} krad computer tolerance.`, 'Add shielding or a tougher computer.');
+  if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `No propulsion: orbit decays after ~${Math.round(orbit.natLife * 12)} months.`, 'Add an engine.');
+  if (late > 0) W('MM', sc.window ? `Development is ${late} months late → miss the launch window, wait ${delay} months.` : `Development is ${late} months behind schedule.`, `Each month of delay costs ${fmtM(marching)}.`);
   for (const o of objectives) {
     if (o.primary && o.cap < 0.5) W('SL', `Weak capability for primary objective "${o.name}" (${Math.round(o.cap * 100)}%).`, 'Useful instruments: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
-    if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" needs ${o.months} months; mission plan is ${months}.`, 'Some phenomena, like seasons, can only be studied over long periods.');
+    if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" needs ${o.months} months; mission plan is ${months}.`, 'Make the mission longer.');
   }
-  if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Reserve only ${Math.round(reservePct * 100)}% of budget.`, 'Reserves pay for anomalies during flight. Without them, problems force you to cut the mission.');
-  if (L.rel - diff.relPenalty < 0.95) W('MM', `Launch reliability ${Math.round((L.rel - diff.relPenalty) * 100)}%.`, 'Less proven rockets fail more often. Is the saving worth the risk?');
+  if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Reserve only ${Math.round(reservePct * 100)}% of budget.`, 'Spare money pays for problems in flight.');
+  if (L.rel - diff.relPenalty < 0.95) W('MM', `Launch reliability ${Math.round((L.rel - diff.relPenalty) * 100)}%.`, 'This rocket fails more often.');
 
   if (!issues.some((i) => i.level !== 'good')) G('ALL', 'All subsystems within limits — great engineering!');
   if (powerMargin >= 0.15 && powerMargin < 1) G('SE', 'Healthy power margin.');

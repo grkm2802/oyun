@@ -72,21 +72,21 @@ function renderTitle() {
   const ps = players();
   const board = loadBoard();
   const crew = S.mode === 'solo'
-    ? `<p class="muted" style="margin:10px 0 0">Dört rolün hepsini sen oynayacaksın: Görev Yöneticisi, Uzay Aracı Mühendisi, Bilim Lideri ve Haberleşme Lideri.</p>`
+    ? `<p class="muted" style="margin:10px 0 0">Dört rolün hepsi sende.</p>`
     : `<div class="row wrap" style="margin-top:12px"><span class="muted">Oyuncu sayısı:</span>
         <div class="seg">${[2, 3, 4].map((n) => `<button data-act="nplayers" data-v="${n}" class="${S.nPlayers === n ? 'sel' : ''}">${n}</button>`).join('')}</div></div>
        <div class="players">${ps.map((p) => `<div class="player-row">
           <input data-name="${p.idx}" value="${esc(p.name)}" maxlength="18" aria-label="${p.idx + 1}. oyuncunun adı">
           <div class="role-chips">${p.roles.map((r) => `<span class="chip" style="border-color:${ROLES[r].color};color:${ROLES[r].color}">${ROLES[r].icon} ${ROLES[r].name}</span>`).join('')}</div>
         </div>`).join('')}</div>
-       <p class="muted" style="font-size:13px;margin:10px 0 0">Cihazı elden ele geçirin: her rol tasarımın bir bölümünden sorumludur ve fırlatmadan önce onay vermelidir. Uçuş sırasında acil durumlarda sorumlu rol karar verir.</p>`;
+       <p class="muted" style="font-size:13px;margin:10px 0 0">Cihazı elden ele geçirin. Her rol kendi bölümünü onaylar.</p>`;
 
   return `<div class="title-wrap">
     <div class="row" style="justify-content:flex-end">${langSwitch()}</div>
     <div class="hero">
       <div class="tag">Uzay görevi tasarım oyunu</div>
       <h1>Görev Mimarı</h1>
-      <p>Bir hedef seç, uzay aracını tasarla, roketi belirle — sonra uçur. Her seçim görevinin kütlesini, gücünü, bütçesini, verisini ve riskini değiştirir.</p>
+      <p>Hedef seç, aracını tasarla, fırlat.</p>
     </div>
 
     <div class="section-title"><span class="n">1</span> Görevini seç</div>
@@ -132,7 +132,7 @@ function renderTitle() {
         ${board.slice().sort((a, b) => b.ranked - a.ranked).slice(0, 10).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.crew)}</td><td>${SCENARIOS[r.s]?.icon || ''} ${esc(r.mission)}</td><td>${esc(r.level)}</td><td>${esc(r.outcome)}</td><td class="mono"><b>${r.ranked}</b> <span class="dim">(${r.grade})</span></td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Bu cihazda henüz görev uçurulmadı. İlk sen ol!</p>'}
     </div>
-    <div class="footer">NASA Space Apps Challenge · Space Mission Design Game için yapıldı. Sayılar öğrenme için basitleştirildi ama gerçek dünyadaki oranları korur.</div>
+    <div class="footer">NASA Space Apps Challenge için yapıldı. Sayılar basitleştirildi.</div>
   </div>`;
 }
 
@@ -401,7 +401,7 @@ function renderStep(R) {
       <div class="panel pad"><h3 style="margin-bottom:10px">Tasarım sorunları</h3>${issueList(R.issues, true)}</div>
       <div class="panel pad"><h3 style="margin-bottom:10px">Rol hedefleri</h3><div class="choice-list">
         ${Object.values(ROLES).map((r) => `<div class="goal"><span class="ri" style="color:${r.color}"></span><div class="grow"><b style="color:${r.color}">${r.name}</b><div class="muted" style="font-size:13px">${r.goal}</div></div><span style="font-size:20px">${R.roleGoals[r.id] ? '✅' : '❌'}</span></div>`).join('')}
-      </div><p class="muted" style="font-size:13px;margin:10px 0 0">Tutturulan her hedef 20 takım çalışması puanı değerinde. Hedefler tutmasa da fırlatabilirsiniz — bu bir takım kararı.</p></div>
+      </div><p class="muted" style="font-size:13px;margin:10px 0 0">Tutan her hedef 20 puan.</p></div>
       ${S.mode === 'team' ? `<div class="panel pad"><h3 style="margin-bottom:10px">✍️ Onaylar</h3><div class="approve-grid">
         ${ps.map((p) => `<div class="approve ${S.approvals[p.idx] ? 'ok' : ''}"><b>${esc(p.name)}</b><div class="role-chips">${p.roles.map((r) => `<span class="chip">${ROLES[r].icon} ${ROLES[r].short}</span>`).join('')}</div>
           <button class="btn small ${S.approvals[p.idx] ? '' : 'primary'}" data-act="approve" data-v="${p.idx}">${S.approvals[p.idx] ? '✓ Onaylandı (geri al)' : 'Tasarımı onayla'}</button></div>`).join('')}
@@ -658,7 +658,7 @@ function renderReport() {
           <tr><td>Yörünge</td><td>${entry.orbit}</td><td class="dim">${prev ? prev.orbit : '—'}</td></tr>
           <tr><td>Aletler</td><td data-icons>${entry.insts}</td><td class="dim" data-icons>${prev ? prev.insts : '—'}</td></tr>
         </table>
-        <p class="muted" style="font-size:13px;margin:10px 0 0">Tek bir mükemmel tasarım nadiren vardır. Farklı bir yörünge, roket veya alet seti dene ve karşılaştır!</p></div>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">Farklı bir tasarım dene, puanını karşılaştır!</p></div>
     </div>
     <div class="start-bar no-print">
       <button class="btn primary big" data-act="redesign">🔧 Tasarımı geliştir</button>
@@ -680,21 +680,21 @@ function helpModal() {
   modal(`<h2>❓ Nasıl oynanır</h2>
     <div><button class="btn primary" data-act="tour" data-v="main">Rehberli turu başlat</button></div>
     <div class="help-steps">
-      <div><b>1 · Tanımla</b><br>Bir görev seç ve bilimsel hedeflerini oku. ⭐ Ana hedefler başarıyı belirler.</div>
-      <div><b>2 · Tasarla</b><br>Yörünge, aletler, araç parçaları, güç, haberleşme ve roketi seç. Gösterge paneli anında güncellenir.</div>
-      <div><b>3 · İncele</b><br>Engelleyici sorunları (⛔) düzelt. Takım modunda her oyuncu tasarımı onaylar.</div>
-      <div><b>4 · Uçur</b><br>Fırlatmayı, yolculuğu ve operasyonları izle. Acil durumlarda sorumlu rol karar verir.</div>
+      <div><b>1 · Seç</b><br>Bir görev seç, hedefleri oku.</div>
+      <div><b>2 · Tasarla</b><br>Yörünge, alet ve parça seç.</div>
+      <div><b>3 · Kontrol et</b><br>Kırmızı sorunları düzelt.</div>
+      <div><b>4 · Uçur</b><br>Fırlat, izle, karar ver.</div>
     </div>
-    <p><b>Puanlama (en fazla 1000):</b> 🔬 Bilim 600 · 🎯 Görev başarısı 150 · ⚙️ Verimlilik 150 (yedek bütçe, paylar, veri) · 👥 Rol hedefleri ve onay 100 · ✨ keşifler ve uzatılmış görevler için bonus. Zor seviyeler sıralama puanını artırır.</p>
-    <p><b>Takım modu:</b> 2–4 oyuncu dört rolü paylaşır. Her rol bazı tasarım adımlarından sorumludur ve kişisel bir hedefi vardır. Hedefler çatışır — konuşarak çözün!</p>
-    <p class="muted">İpucu: her seçenek kartı, onu seçersen ne olacağını gösterir (→ değerleri). Ödünleşimleri keşfetmek için bunları kullan.</p>`);
+    <p><b>Puan (en fazla 1000):</b> Bilim 600 · Başarı 150 · Verimlilik 150 · Takım 100 · Bonus.</p>
+    <p><b>Takım:</b> 2–4 kişi rolleri paylaşır. Konuşarak karar verin!</p>
+    <p class="muted">İpucu: "→" değerleri, o seçeneği seçersen ne olacağını gösterir.</p>`);
 }
 function glossModal() {
   modal(`<h2>📖 Sözlük</h2><dl class="gloss">${GLOSSARY.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join('')}</dl>`);
 }
 function shareModal() {
   const code = encodeDesign();
-  modal(`<h2>🔗 Bu tasarımı paylaş</h2><p class="muted">Bu kodu arkadaşlarına gönder. Başlangıç ekranındaki "Paylaşılan tasarımı aç" düğmesine yapıştırınca senin tasarımını açıp aynısını uçurabilirler.</p>
+  modal(`<h2>🔗 Bu tasarımı paylaş</h2><p class="muted">Bu kodu arkadaşına gönder. "Paylaşılan tasarımı aç" ile açabilir.</p>
     <textarea class="code" readonly id="share-code">${esc(code)}</textarea>
     <div class="row" style="margin-top:8px"><button class="btn small" data-act="copy">📋 Kopyala</button></div>`);
 }
