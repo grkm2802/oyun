@@ -152,7 +152,15 @@
       </div>`;
   };
 
+  // yapışkan gösterge şeridi üst çubuğun hemen altına otursun (telefonda üst çubuk birkaç satır olabilir)
+  function syncTopbar() {
+    const tb = document.querySelector('.topbar');
+    if (tb) document.documentElement.style.setProperty('--tb-h', tb.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', syncTopbar);
+
   window.refreshDesign = function (which = { main: true, side: true }) {
+    syncTopbar();
     if (!STEPS.some((s) => s.id === S.step)) S.step = S.step === 'review' ? 'launch' : 'mission';
     const R = calc();
     S.visited[S.step] = true;

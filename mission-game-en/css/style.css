@@ -469,3 +469,26 @@ input:focus-visible, textarea:focus-visible { outline-offset: 1px; }
   .ws-tab { flex: 1 0 auto; padding: 10px 8px; font-size: 15px; gap: 6px; }
   .ws-tab .lbl { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Göstergeler yanda (kullanıcı isteği 2026-11-14: değişiklikler kolay görünsün).
+   Geniş ekranda sağda sabit sütun; dar ekranda üst çubuğun altında yapışkan şerit. */
+@media (min-width: 1001px) {
+  .ws { grid-template-columns: minmax(0, 1fr) 250px; align-items: start; column-gap: 18px; }
+  .ws > * { grid-column: 1; }
+  .ws > .ws-gauges { grid-column: 2; grid-row: 1 / span 4; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--tb-h, 57px) + 12px); grid-template-columns: 1fr; gap: 8px; max-height: calc(100vh - var(--tb-h, 57px) - 28px); overflow-y: auto; }
+}
+@media (max-width: 1000px) {
+  .ws-gauges, .ws-gauges .gauge { min-width: 0; }
+  .ws > .ws-gauges { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--tb-h, 57px)); z-index: 15; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; overflow: visible; margin-inline: -16px; padding: 8px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .ws-gauges .gauge { padding: 6px 8px; gap: 3px; flex: none; }
+  .ws-gauges .g-label { font-size: 11px; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ws-gauges .g-val { font-size: 16px; }
+  .ws-gauges .g-cap { font-size: 11px; }
+  .ws-gauges .g-sub { display: none; }
+  .ws-gauges .g-bar { height: 6px; }
+}
+@media (max-width: 720px) {
+  .ws-gauges .g-cap { display: none; }
+  .ws-gauges .g-val { font-size: 14px; }
+  .ws-gauges .gauge { padding: 5px 6px; }
+}
