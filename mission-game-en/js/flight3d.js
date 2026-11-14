@@ -52,6 +52,8 @@
     renderer.setClearColor(0x05080d, 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     const cv = renderer.domElement; cv.className = 'viz-3d'; cv.setAttribute('aria-hidden', 'true');
+    // Three.js tuvale satır içi display:block yazar; gizleme (hidden) çalışsın diye kaldır (yoksa yolculukta fırlatmanın son karesi donup kalıyordu)
+    cv.style.display = '';
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(36, 1.6, 0.05, 400);
     // güneş sol-üstten (2B görünüm ve atölyeyle aynı yön)
@@ -111,21 +113,20 @@
       S.plane.add(line(pts, 0xffffff, 0.3));
       S.extent = 3.4;
     } else {
-      S.a = Math.max(1.05, ob.viz.a); S.e = ob.viz.e || 0;
-      // Uydu gezegenin içine girmesin: yörüngenin en yakın noktası (a·(1−e)) gezegen yüzeyi + büyütülmüş uydu
-      // boyunun dışında kalmalı. En uzak nokta korunur; basık elipslerde (Jüpiter, Mars eliptik, NRHO) en yakın nokta dışarı çekilir.
-      const ra = S.a * (1 + S.e);
+      // Yörünge gezegene ORTALI çizilir (kullanıcı isteği 2026-11-14: Jüpiter'de uydu merkez etrafında dönmüyordu).
+      // Basık yörüngeler (Jüpiter, Mars eliptik, NRHO) ortalı bir elips olur; kısa yarı eksen bile gezegen yüzeyi +
+      // büyütülmüş uydu boyunun dışında kalır, yani uydu gezegenin içine girmez.
+      const a0 = Math.max(1.05, ob.viz.a), e0 = ob.viz.e || 0;
+      const ra = a0 * (1 + e0) * (e0 > 0 ? 0.75 : 1); // uzun yarı eksen (ortalı elipste biraz kısaltılır)
       const sizeEst = Math.max(0.26, Math.max(1.65, ra + 0.2, S.jup ? S.moonR + 0.4 : 0) * 0.1);
-      const rpMin = 1.08 + sizeEst; // uydunun yarıçapı = sizeEst
-      if (S.a * (1 - S.e) < rpMin) {
-        if (S.e > 0 && ra > rpMin) { S.a = (ra + rpMin) / 2; S.e = (ra - rpMin) / (ra + rpMin); }
-        else { S.a = rpMin; S.e = 0; }
-      }
-      const b = S.a * Math.sqrt(1 - S.e * S.e), fc = S.a * S.e, pts = [];
-      for (let i = 0; i <= 160; i++) { const E = (i / 160) * Math.PI * 2; pts.push(new THREE.Vector3(S.a * Math.cos(E) - fc, 0, b * Math.sin(E))); }
+      const rMin = 1.08 + sizeEst; // uydunun yarıçapı = sizeEst
+      S.a = Math.max(ra, rMin);
+      const b = Math.max(rMin, S.a * Math.sqrt(1 - Math.min(0.6, e0) * Math.min(0.6, e0))), fc = 0, pts = [];
+      S.e = 0;
+      for (let i = 0; i <= 160; i++) { const E = (i / 160) * Math.PI * 2; pts.push(new THREE.Vector3(S.a * Math.cos(E), 0, b * Math.sin(E))); }
       S.plane.add(line(pts, 0xffffff, 0.32));
       S.b = b; S.fc = fc;
-      S.extent = Math.max(1.65, S.a * (1 + S.e) + 0.2, S.jup ? S.moonR + 0.4 : 0);
+      S.extent = Math.max(1.65, S.a + 0.2, S.jup ? S.moonR + 0.4 : 0);
     }
     // uzay aracı: atölyedeki 3B model, görünür olsun diye büyütülmüş
     S.craft = new THREE.Group();
