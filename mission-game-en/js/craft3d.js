@@ -36,6 +36,53 @@
     return null;
   }
 
+  // NASA 3B modelleri (glb): mission-game/models/. GLTFLoader (Three.js r147, klasik script) ilk gerektiğinde yüklenir.
+  // file:// ile açılınca model dosyası okunamaz → hiç denemez (onFail). Kaynaklar README'de.
+  const MODEL_BASE = SELF ? new URL('../../mission-game/models/', SELF).href : 'mission-game/models/';
+  const GLTF_URL = SELF ? new URL('../../mission-game/vendor/GLTFLoader.js', SELF).href : 'mission-game/vendor/GLTFLoader.js';
+  const MODELS = {};
+  let gltfState = 'idle'; const gltfWait = [];
+  function withGLTF(cb) {
+    if (gltfState === 'ok') return cb(true);
+    if (gltfState === 'fail') return cb(false);
+    gltfWait.push(cb);
+    if (gltfState === 'loading') return;
+    gltfState = 'loading';
+    const sc = document.createElement('script'); sc.src = GLTF_URL;
+    sc.onload = () => { gltfState = THREE.GLTFLoader ? 'ok' : 'fail'; gltfWait.splice(0).forEach((f) => f(gltfState === 'ok')); };
+    sc.onerror = () => { gltfState = 'fail'; gltfWait.splice(0).forEach((f) => f(false)); };
+    document.head.appendChild(sc);
+  }
+  // Modeli bir kez yükler; her istekte sahneye eklenebilecek bir kopya (clone) verir.
+  function loadModel(file, onLoad, onFail) {
+    if (location.protocol === 'file:') { if (onFail) onFail(); return; }
+    let e = MODELS[file];
+    if (e && e.scene) return onLoad(e.scene.clone(true));
+    if (e && e.failed) { if (onFail) onFail(); return; }
+    if (!e) {
+      e = MODELS[file] = { scene: null, failed: false, ok: [], bad: [] };
+      withGLTF((ok) => {
+        const fail = () => { e.failed = true; e.bad.splice(0).forEach((f) => f()); e.ok = []; };
+        if (!ok) return fail();
+        // Dokular glb içinde: GLTFLoader bunları blob: adresinden ImageBitmapLoader ile (fetch) okur ve sitenin CSP'si
+        // (connect-src) buna izin vermez. Ayrıştırıcı oluşturulurken createImageBitmap'i gizleyince <img> ile
+        // okuyan TextureLoader'ı seçer (img-src blob: izinli).
+        fetch(MODEL_BASE + file).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then((buf) => {
+          const saved = window.createImageBitmap;
+          try { window.createImageBitmap = undefined; } catch (_) {}
+          try {
+            new THREE.GLTFLoader().parse(buf, MODEL_BASE, (g) => {
+              e.scene = g.scene;
+              g.scene.traverse((o) => { if (o.material && o.material.map) o.material.map.encoding = THREE.sRGBEncoding; });
+              e.ok.splice(0).forEach((f) => f(e.scene.clone(true))); e.bad = [];
+            }, (err) => { console.warn('model', file, err); fail(); });
+          } finally { try { window.createImageBitmap = saved; } catch (_) {} }
+        }).catch((err) => { console.warn('model', file, err); fail(); });
+      });
+    }
+    e.ok.push(onLoad); if (onFail) e.bad.push(onFail);
+  }
+
   let state = 'idle'; // idle | loading | ok | fail
   const waiters = [];
   function webglOK() {
@@ -663,6 +710,7 @@
     ready(onReady) { if (state === 'ok') return true; if (state !== 'fail') load((ok) => { if (ok && onReady) onReady(); }); return false; },
     failed() { return state === 'fail'; },
     nasaTex,
+    loadModel,
     // uçuş ekranı da aynı gezinme araçlarını kullanır
     nav: { createNav, bindGestures, toolbar, makeStars, placeCamera, isFull, exitFull },
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde

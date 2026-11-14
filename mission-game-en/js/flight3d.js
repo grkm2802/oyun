@@ -234,21 +234,68 @@
 
   /* ---------------- 3B fırlatma sahnesi ----------------
      ui.launchAnim 0→1 (ui.js): 0–0,1 ateşleme, sonra roket hızlanarak yükselir; ~0,5'te fırlatma sonucu belli olur.
-     Arıza (sim.endReason === 'launch') 0,55'ten sonra patlama. Roketin boyu ve yan roketleri seçilen rokete göre. */
+     Arıza (sim.endReason === 'launch') 0,55'ten sonra patlama.
+     Roketler NASA 3D Resources modelleri (mission-game/models): küçük roketler Explorer 1'i fırlatan Jupiter-C,
+     büyükler Saturn V. Model yüklenene kadar (ya da yüklenemezse) kodla çizilen roket görünür.
+     Alev ve duman parçacıklarla: alev = motordan hızla akan toplamalı (additive) parçacıklar + parlak çekirdek;
+     duman = kalkışta alev kanalından iki yana yayılan, yavaşlayan ve büyüyen bulutlar + havada asılı kalan iz sütunu. */
   const ROCKETS = {
-    rideshare: { h: 9, r: 0.42, boosters: 0 },
-    small: { h: 8, r: 0.38, boosters: 0 },
-    medium: { h: 12, r: 0.55, boosters: 0 },
-    heavy: { h: 14, r: 0.6, boosters: 2 },
-    superheavy: { h: 19, r: 0.85, boosters: 2 },
+    rideshare: { h: 9, r: 0.42, boosters: 0, model: 'jupiter_c.glb' },
+    small: { h: 8, r: 0.38, boosters: 0, model: 'jupiter_c.glb' },
+    medium: { h: 12, r: 0.55, boosters: 0, model: 'saturn_v.glb' },
+    heavy: { h: 14, r: 0.62, boosters: 0, model: 'saturn_v.glb' },
+    superheavy: { h: 18, r: 0.8, boosters: 0, model: 'saturn_v.glb' },
   };
-  function softTex(inner, outer) {
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, inner); gr.addColorStop(1, outer);
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    return new THREE.CanvasTexture(c);
+  const rnd = () => Math.random(); // sadece görsel efekt (simülasyonu etkilemez)
+
+  // dokular (bir kez üretilir)
+  let FX = null;
+  function fxTextures() {
+    if (FX) return FX;
+    const mk = (draw, n = 128) => { const c = document.createElement('canvas'); c.width = c.height = n; draw(c.getContext('2d'), n); const t = new THREE.CanvasTexture(c); return t; };
+    // alev parçacığı: beyaz-sarı çekirdek, turuncu kenar
+    const fire = mk((g, n) => { const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+      gr.addColorStop(0, 'rgba(255,255,245,1)'); gr.addColorStop(0.2, 'rgba(255,236,170,0.95)'); gr.addColorStop(0.5, 'rgba(255,150,50,0.55)'); gr.addColorStop(1, 'rgba(255,80,10,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, n, n); });
+    // duman bulutu: üst üste binmiş yumuşak lekeler (pürüzlü, kabarık görünüm)
+    const smoke = mk((g, n) => {
+      let s = 7; const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < 26; i++) {
+        const a = r() * Math.PI * 2, d = r() * n * 0.22, x = n / 2 + Math.cos(a) * d, y = n / 2 + Math.sin(a) * d, rad = n * (0.14 + r() * 0.2);
+        const gr = g.createRadialGradient(x, y, 0, x, y, rad); const v = 200 + Math.floor(r() * 55);
+        gr.addColorStop(0, `rgba(${v},${v},${v},0.55)`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`);
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+      }
+      // kenarları yumuşat
+      g.globalCompositeOperation = 'destination-in';
+      const m = g.createRadialGradient(n / 2, n / 2, n * 0.15, n / 2, n / 2, n / 2); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = m; g.fillRect(0, 0, n, n);
+    });
+    const glow = mk((g, n) => { const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+      gr.addColorStop(0, 'rgba(255,240,200,1)'); gr.addColorStop(0.3, 'rgba(255,190,110,0.5)'); gr.addColorStop(1, 'rgba(255,140,60,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, n, n); }, 64);
+    const sun = mk((g, n) => { const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+      gr.addColorStop(0, 'rgba(255,255,250,1)'); gr.addColorStop(0.08, 'rgba(255,250,230,1)'); gr.addColorStop(0.25, 'rgba(255,230,180,0.35)'); gr.addColorStop(1, 'rgba(255,220,170,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, n, n); });
+    FX = { fire, smoke, glow, sun };
+    return FX;
   }
+
+  // gökyüzü: ufukta açık, tepede koyu mavi; yükseldikçe ikisi de uzay siyahına döner
+  function skyDome() {
+    const mat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { top: { value: new THREE.Color(0x1f4f9a) }, horizon: { value: new THREE.Color(0xbfd6ee) }, space: { value: 0 } },
+      vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform float space; varying vec3 vP;' +
+        'void main(){ float h = clamp(vP.y, -0.2, 1.0); float k = pow(clamp(h, 0.0, 1.0), 0.45);' +
+        ' vec3 c = mix(horizon, top, k); vec3 sp = vec3(0.012,0.016,0.03); c = mix(c, sp, space * (0.6 + 0.4 * k));' +
+        ' if (h < 0.0) c = mix(c, horizon * 0.6, -h * 2.0 * (1.0 - space)); gl_FragColor = vec4(c, 1.0); }',
+    });
+    return new THREE.Mesh(new THREE.SphereGeometry(2000, 32, 16), mat);
+  }
+
+  // kodla çizilen yedek roket (model yüklenene kadar)
   function buildRocket(spec) {
     const g = new THREE.Group();
     const white = new THREE.MeshStandardMaterial({ color: 0xf2f3f5, roughness: 0.5, metalness: 0.1 });
@@ -257,96 +304,97 @@
     const { h, r } = spec;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h * 0.78, 32), white); body.position.y = h * 0.39; g.add(body);
     const band = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.01, r * 1.01, h * 0.03, 32), dark); band.position.y = h * 0.55; g.add(band);
-    // faydalı yük kaplaması (fairing) + burun
     const fair = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.12, r * 1.02, h * 0.1, 32), white); fair.position.y = h * 0.83; g.add(fair);
     const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(r * 1.12 * Math.sqrt(1 - t * t), t * h * 0.14)); }
     const nose = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), white); nose.position.y = h * 0.88; g.add(nose);
-    // motor ağızları
     const bellPts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; bellPts.push(new THREE.Vector2(r * (0.25 + 0.45 * Math.pow(t, 0.7)), -t * r * 0.9)); }
-    const bellGeo = new THREE.LatheGeometry(bellPts, 20);
-    const nb = spec.r > 0.5 ? 3 : 1;
-    for (let i = 0; i < nb; i++) { const b = new THREE.Mesh(bellGeo, metal); const a = (i / nb) * Math.PI * 2; if (nb > 1) b.position.set(Math.cos(a) * r * 0.45, 0, Math.sin(a) * r * 0.45); b.scale.setScalar(nb > 1 ? 0.6 : 1); g.add(b); }
-    // kanatçıklar
-    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.04, h * 0.08, r * 0.7), dark); const a = (i / 4) * Math.PI * 2 + Math.PI / 4; f.position.set(Math.cos(a) * r * 1.15, h * 0.05, Math.sin(a) * r * 1.15); f.rotation.y = -a; g.add(f); }
-    // yan roketler
-    const boosters = [];
-    for (let i = 0; i < spec.boosters; i++) {
-      const side = i === 0 ? -1 : 1, bg = new THREE.Group(), br = r * 0.75, bh = h * 0.62;
-      const bb = new THREE.Mesh(new THREE.CylinderGeometry(br, br, bh, 24), white); bb.position.y = bh / 2; bg.add(bb);
-      const bn = new THREE.Mesh(new THREE.ConeGeometry(br, br * 2, 24), white); bn.position.y = bh + br; bg.add(bn);
-      const bm = new THREE.Mesh(bellGeo, metal); bm.scale.setScalar(0.8); bg.add(bm);
-      bg.position.x = side * (r + br + 0.05); g.add(bg); boosters.push(bg);
-    }
-    return { g, boosters };
+    const bell = new THREE.Mesh(new THREE.LatheGeometry(bellPts, 20), metal); g.add(bell);
+    return g;
   }
-  function makeFlame(len, rad) {
-    const f = new THREE.Group();
-    const outer = new THREE.Mesh(new THREE.ConeGeometry(rad, len, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    outer.rotation.x = Math.PI; outer.position.y = -len / 2; f.add(outer);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.55, len * 0.55, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    inner.rotation.x = Math.PI; inner.position.y = -len * 0.275; f.add(inner);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex('rgba(255,210,140,1)', 'rgba(255,140,40,0)'), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
-    glow.scale.setScalar(rad * 6); glow.position.y = -rad * 0.6; f.add(glow);
-    return f;
+  // NASA modelini dik, tabanı y=0'da, yüksekliği spec.h olacak şekilde yerleştir
+  function fitModel(m, spec) {
+    const wrap = new THREE.Group(); wrap.add(m);
+    let box = new THREE.Box3().setFromObject(m), size = box.getSize(new THREE.Vector3());
+    // en uzun eksen roketin boyu: Y'ye çevir
+    if (size.x > size.y && size.x >= size.z) m.rotation.z = Math.PI / 2;
+    else if (size.z > size.y && size.z > size.x) m.rotation.x = -Math.PI / 2;
+    m.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(m); size = box.getSize(new THREE.Vector3());
+    const k = spec.h / size.y; m.scale.multiplyScalar(k); m.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(m);
+    const c = box.getCenter(new THREE.Vector3());
+    m.position.x -= c.x; m.position.z -= c.z; m.position.y -= box.min.y;
+    m.traverse((o) => { if (o.isMesh) o.userData.shared = true; }); // geometri önbellekteki modelle ortak: silme
+    return wrap;
   }
 
   function buildLaunch(sim) {
     const spec = ROCKETS[sim.R.d.launcher] || ROCKETS.medium;
+    const T = fxTextures();
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x4a78bf);
-    scene.fog = new THREE.Fog(0x7f9cc4, 700, 3000);
-    const cam = new THREE.PerspectiveCamera(42, 1.6, 0.1, 3000);
-    const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.position.set(-40, 60, 30); scene.add(sun);
-    const hemi = new THREE.HemisphereLight(0xb8d4ff, 0x3a4a30, 0.6); scene.add(hemi);
-    // zemin: kıyı otu + beton rampa + alev kanalı
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ color: 0x1c2b13 }));
+    scene.fog = new THREE.Fog(0xbfd6ee, 500, 2600);
+    const cam = new THREE.PerspectiveCamera(40, 1.6, 0.1, 5000);
+    const sky = skyDome(); scene.add(sky);
+    const sunDir = new THREE.Vector3(-0.55, 0.42, -0.72).normalize();
+    const sunSp = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sun, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+    sunSp.scale.setScalar(240); scene.add(sunSp);
+    const sun = new THREE.DirectionalLight(0xfff1dc, 2.2); sun.position.set(-60, 50, 55); scene.add(sun); // roketin önünü aydınlatsın
+    const hemi = new THREE.HemisphereLight(0xc4dcff, 0x3a4a30, 0.65); scene.add(hemi);
+    // alev ışığı: rampayı ve dumanı turuncuya boyar
+    const fireLight = new THREE.PointLight(0xffa040, 0, 120, 1.6); scene.add(fireLight);
+    // zemin: koyu kıyı bitki örtüsü, deniz, beton rampa, alev kanalı
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshLambertMaterial({ color: 0x1c2b13 }));
     ground.rotation.x = -Math.PI / 2; scene.add(ground);
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1400), new THREE.MeshStandardMaterial({ color: 0x123150, roughness: 0.35, metalness: 0.2 }));
-    sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.02, -900); scene.add(sea);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(7, 7.6, 0.6, 48), new THREE.MeshStandardMaterial({ color: 0x7d8086, roughness: 0.95 }));
-    pad.position.y = 0.3; scene.add(pad);
-    const trench = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.65, 10), new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 1 }));
-    trench.position.set(0, 0.31, 5.5); scene.add(trench);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(6000, 2600), new THREE.MeshStandardMaterial({ color: 0x123150, roughness: 0.3, metalness: 0.25 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.03, -1700); scene.add(sea);
+    const concrete = new THREE.MeshStandardMaterial({ color: 0x4e5156, roughness: 0.95 });
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(9, 9.8, 0.8, 48), concrete); pad.position.y = 0.4; scene.add(pad);
+    const mound = new THREE.Mesh(new THREE.CylinderGeometry(14, 22, 2.2, 48), new THREE.MeshLambertMaterial({ color: 0x3e3c36 })); mound.position.y = -0.7; scene.add(mound);
+    const trench = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.9, 22), new THREE.MeshStandardMaterial({ color: 0x2c2d30, roughness: 1 })); trench.position.set(0, 0.4, 0); scene.add(trench);
     // kule: kafes direk + kollar
-    const steel = new THREE.MeshStandardMaterial({ color: 0x6c3a2e, roughness: 0.7, metalness: 0.4 });
-    const tower = new THREE.Group(), th = spec.h * 1.15, tw = 1.6;
+    const steel = new THREE.MeshStandardMaterial({ color: 0x8a3b2a, roughness: 0.7, metalness: 0.4 });
+    const tower = new THREE.Group(), th = spec.h * 1.15, tw = 1.8;
     for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.14, th, 0.14), steel); p.position.set(x * tw / 2, th / 2, z * tw / 2); tower.add(p); }
-    for (let y = 1; y < th; y += 1.2) {
-      for (const [w, d, x, z] of [[tw, 0.08, 0, -tw / 2], [tw, 0.08, 0, tw / 2], [0.08, tw, -tw / 2, 0], [0.08, tw, tw / 2, 0]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, d), steel); b.position.set(x, y, z); tower.add(b); }
+    for (let y = 1; y < th; y += 1.1) {
+      for (const [w, d, x, z] of [[tw, 0.07, 0, -tw / 2], [tw, 0.07, 0, tw / 2], [0.07, tw, -tw / 2, 0], [0.07, tw, tw / 2, 0]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), steel); b.position.set(x, y, z); tower.add(b); }
+      const dg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.05), steel); dg.position.set(-tw / 2, y + 0.55, 0); dg.rotation.x = 0.9; tower.add(dg);
     }
-    for (const yy of [spec.h * 0.45, spec.h * 0.8]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(spec.r + 2.2, 0.25, 0.5), steel); arm.position.set(-(spec.r + 2.2) / 2 + 0.2, yy, 0); tower.add(arm); }
-    tower.position.set(spec.r + 2.6 + (spec.boosters ? spec.r * 1.6 : 0), 0.6, 0); scene.add(tower);
+    for (const yy of [spec.h * 0.45, spec.h * 0.8]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(spec.r + 2.4, 0.25, 0.6), steel); arm.position.set(-(spec.r + 2.4) / 2 + 0.2, yy, 0); tower.add(arm); }
+    tower.position.set(spec.r + 3.2, 0.8, 0); scene.add(tower);
     // roket
-    const { g: rocket, boosters } = buildRocket(spec);
-    rocket.position.y = 0.6 + spec.r * 0.9; scene.add(rocket);
-    const flames = [makeFlame(spec.h * 0.5, spec.r * 0.9)];
-    rocket.add(flames[0]);
-    boosters.forEach((b) => { const f = makeFlame(spec.h * 0.35, spec.r * 0.6); b.add(f); flames.push(f); });
+    const rocket = new THREE.Group(); scene.add(rocket);
+    const body = new THREE.Group(); rocket.add(body);
+    body.add(buildRocket(spec));
+    Craft3D.loadModel(spec.model, (m) => { if (V && V.L && V.L.rocket === rocket) { body.clear(); body.add(fitModel(m, spec)); } });
+    // parlak alev çekirdeği (kısa) + parıltı
+    const core = new THREE.Mesh(new THREE.ConeGeometry(spec.r * 0.55, spec.h * 0.22, 20, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xfff6d8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    core.rotation.x = Math.PI; core.position.y = -spec.h * 0.11; rocket.add(core);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
+    glow.scale.setScalar(spec.r * 5); glow.position.y = -spec.r * 0.8; rocket.add(glow);
+    // parçacık havuzları
+    const mkPool = (n, map, additive) => Array.from({ length: n }, () => {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, opacity: 0, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: !additive }));
+      s.visible = false; s.userData = { life: 0, age: 0, v: new THREE.Vector3(), s0: 1, s1: 1, rot: 0, op: 1 }; scene.add(s); return s;
+    });
+    const fire = mkPool(420, T.fire, true);
+    const smoke = mkPool(260, T.smoke, false);
     // yıldızlar (yükseldikçe görünür)
-    const stars = Craft3D.nav.makeStars(1200, 1500, 11);
+    const stars = Craft3D.nav.makeStars(1400, 1800, 11);
     stars.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = 0; o.material.fog = false; } });
     scene.add(stars);
-    // duman bulutları
-    const smokeTex = softTex('rgba(235,235,235,0.9)', 'rgba(200,200,200,0)');
-    const smoke = [];
-    for (let i = 0; i < 70; i++) {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
-      s.userData = { born: -1 }; scene.add(s); smoke.push(s);
-    }
-    // patlama
-    // patlama: turuncu ateş topu + koyu duman (normal karışım; toplamalı karışım gökyüzünde soluk görünüyordu)
-    const fireTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-      gr.addColorStop(0, 'rgba(255,248,220,1)'); gr.addColorStop(0.25, 'rgba(255,196,80,1)'); gr.addColorStop(0.55, 'rgba(238,96,24,0.9)'); gr.addColorStop(1, 'rgba(120,30,10,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+    // patlama (arıza): turuncu ateş topu + koyu duman
     const boom = new THREE.Group();
-    const fire = []; const dsmoke = [];
-    for (let i = 0; i < 7; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireTex, transparent: true, depthWrite: false, opacity: 0, fog: false })); f.userData.o = new THREE.Vector3(Math.cos(i * 2.4), Math.sin(i * 1.7) * 0.8, Math.sin(i * 2.4)).multiplyScalar(i ? 0.5 : 0); boom.add(f); fire.push(f); }
-    const dTex = softTex('rgba(28,26,25,0.95)', 'rgba(20,20,20,0)');
-    for (let i = 0; i < 9; i++) { const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, transparent: true, depthWrite: false, opacity: 0, fog: false })); d.userData.o = new THREE.Vector3(Math.cos(i * 1.9), Math.sin(i * 2.3) * 0.7 + 0.2, Math.sin(i * 1.9)); boom.add(d); dsmoke.push(d); }
-    boom.userData = { fire, dsmoke };
+    const bf = [], bd = [];
+    const dTex = T.smoke;
+    for (let i = 0; i < 8; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.fire, transparent: true, depthWrite: false, opacity: 0, fog: false })); f.userData.o = new THREE.Vector3(Math.cos(i * 2.4), Math.sin(i * 1.7) * 0.8, Math.sin(i * 2.4)).multiplyScalar(i ? 0.5 : 0); boom.add(f); bf.push(f); }
+    for (let i = 0; i < 12; i++) { const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, color: 0x2a2826, transparent: true, depthWrite: false, opacity: 0, fog: false })); d.userData.o = new THREE.Vector3(Math.cos(i * 1.9), Math.sin(i * 2.3) * 0.7 + 0.2, Math.sin(i * 1.9)); boom.add(d); bd.push(d); }
+    boom.userData = { fire: bf, dsmoke: bd };
     scene.add(boom);
-    return { scene, cam, spec, rocket, flames, stars, smoke, boom, sky0: new THREE.Color(0x4a78bf), sky1: new THREE.Color(0x03050a), fog0: new THREE.Color(0x7f9cc4), si: 0, lastP: 0, sim };
+    return { scene, cam, spec, rocket, core, glow, fire, smoke, fi: 0, si: 0, emitF: 0, emitS: 0, stars, sky, sunSp, sunDir, fireLight, boom, sim, lastPos: null };
   }
+
+  function emit(pool, idx, set) { const s = pool[idx % pool.length]; set(s, s.userData); s.visible = true; return idx + 1; }
 
   function renderLaunch(canvas, sim, ui) {
     const wrap = canvas.parentElement;
@@ -363,61 +411,117 @@
     if (V.w !== w || V.h !== h) { V.w = w; V.h = h; V.renderer.setSize(w, h, false); }
     if (L.cam.aspect !== w / h) { L.cam.aspect = w / h; L.cam.updateProjectionMatrix(); }
     const p = ui.launchAnim || 0, now = performance.now() / 1000;
+    const dt = ui.paused ? 0 : Math.min(0.05, ui.dt || 0.016);
     const failed = sim.endReason === 'launch' && p > 0.55;
-    // arızada roket patladığı yerde kalır (patlama yükselmeye devam etmesin)
+    // arızada roket patladığı yerde kalır
     const lift = Math.max(0, (failed ? 0.55 : p) - 0.1) / 0.9;
     const alt = lift * lift * 900; // yükseklik (sahne birimi)
-    // gökyüzü yükseldikçe kararır, yıldızlar çıkar
-    const t = Math.min(1, alt / 500);
-    L.scene.background.copy(L.sky0).lerp(L.sky1, t);
-    L.scene.fog.color.copy(L.fog0).lerp(L.sky1, t);
-    L.stars.traverse((o) => { if (o.material) o.material.opacity = Math.max(0, (t - 0.35) / 0.65); });
-    // roket: hafif yatış (yörüngeye dönüş manevrası)
-    const baseY = 0.6 + sp.r * 0.9;
+    // gök: yükseldikçe uzay siyahı, yıldızlar çıkar
+    const t = Math.min(1, alt / 520);
+    L.sky.material.uniforms.space.value = t;
+    L.scene.fog.color.setRGB(0.75 * (1 - t) + 0.01, 0.84 * (1 - t) + 0.015, 0.93 * (1 - t) + 0.03);
+    L.stars.traverse((o) => { if (o.material) o.material.opacity = Math.max(0, (t - 0.4) / 0.6); });
+    // roket konumu ve yatışı (yörüngeye dönüş manevrası)
+    const baseY = 0.8;
     L.rocket.position.set(alt * 0.05 * lift, baseY + alt, 0);
     L.rocket.rotation.z = -0.35 * lift * lift;
     L.rocket.visible = !failed;
-    // alev: ateşlemeyle büyür, titrer
-    const ign = Math.min(1, p / 0.08), fl = REDUCED_MOTION ? 1 : 1 + Math.sin(now * 40) * 0.06 + Math.sin(now * 23) * 0.05;
-    L.flames.forEach((f) => { f.visible = p > 0.01 && !failed; f.scale.set(1, (0.3 + 0.7 * ign) * fl * (1 + lift * 0.6), 1); });
-    // duman: kalkışta rampadan yayılır, sonra roketin arkasında iz
-    if (!REDUCED_MOTION && p > 0.02 && !failed && p > L.lastP) {
-      const n = alt < 40 ? 3 : 1;
-      for (let k = 0; k < n; k++) {
-        const s = L.smoke[L.si++ % L.smoke.length];
-        const ground = alt < 25;
-        s.userData = { born: now, life: ground ? 3.5 : 2.2, vx: (Math.random() - 0.5) * (ground ? 14 : 2), vy: ground ? Math.random() * 2 : -3, vz: (Math.random() - 0.5) * (ground ? 14 : 2), s0: sp.r * (ground ? 4 : 3), grow: ground ? 14 : 5 };
-        s.position.set(L.rocket.position.x + (Math.random() - 0.5) * sp.r, ground ? 1.2 : L.rocket.position.y - sp.h * 0.1, (Math.random() - 0.5) * sp.r);
+    const firing = p > 0.01 && !failed;
+    const ign = Math.min(1, p / 0.06);
+    const fl = REDUCED_MOTION ? 1 : 1 + Math.sin(now * 47) * 0.08 + Math.sin(now * 29) * 0.06;
+    L.core.visible = firing; L.glow.visible = firing;
+    L.core.scale.set(1, ign * fl * (1 + lift * 0.8), 1);
+    L.glow.material.opacity = 0.75 * ign; L.glow.scale.setScalar(sp.r * (4.5 + 1.2 * fl) * (1 + lift * 0.6));
+    // alev ışığı
+    L.fireLight.position.copy(L.rocket.position); L.fireLight.position.y -= sp.r;
+    L.fireLight.intensity = firing ? 3.5 * ign * fl : 0;
+    // nozul dünya konumu ve roketin aşağı yönü
+    L.rocket.updateMatrixWorld();
+    const nozzle = new THREE.Vector3(0, -sp.r * 0.6, 0).applyMatrix4(L.rocket.matrixWorld);
+    const down = new THREE.Vector3(0, -1, 0).applyQuaternion(L.rocket.quaternion);
+    const rv = L.lastPos ? L.rocket.position.clone().sub(L.lastPos).divideScalar(Math.max(dt, 1e-3)) : new THREE.Vector3();
+    if (dt > 0) L.lastPos = L.rocket.position.clone();
+    // --- alev parçacıkları: motordan aşağı hızla akar, kısa ömürlü
+    if (firing && dt > 0) {
+      L.emitF += dt * (REDUCED_MOTION ? 120 : 900);
+      while (L.emitF >= 1) {
+        L.emitF -= 1;
+        L.fi = emit(L.fire, L.fi, (s, u) => {
+          const sprd = 0.18;
+          u.v.copy(down).multiplyScalar(sp.h * (1.6 + rnd() * 1.0)).add(new THREE.Vector3((rnd() - 0.5) * sp.h * sprd, (rnd() - 0.5) * sp.h * sprd * 0.3, (rnd() - 0.5) * sp.h * sprd)).addScaledVector(rv, 0.85);
+          u.age = 0; u.life = 0.18 + rnd() * 0.22; u.s0 = sp.r * (1.4 + rnd() * 0.5); u.s1 = sp.r * (2.4 + rnd() * 1.6) * (1 + lift * 1.2);
+          s.position.copy(nozzle).addScaledVector(down, rnd() * sp.r);
+          s.material.rotation = rnd() * 6.28;
+        });
       }
     }
-    L.smoke.forEach((s) => {
-      const u = s.userData; if (u.born < 0) return;
-      const a = (now - u.born) / u.life;
-      if (a >= 1) { u.born = -1; s.material.opacity = 0; return; }
-      const dt = ui.paused ? 0 : (ui.dt || 0.016);
-      s.position.x += u.vx * dt; s.position.y += u.vy * dt; s.position.z += u.vz * dt;
-      s.scale.setScalar(u.s0 + u.grow * a * sp.r * 3);
-      s.material.opacity = 0.75 * (1 - a);
-    });
-    L.lastP = p;
+    for (const s of L.fire) {
+      const u = s.userData; if (!s.visible) continue;
+      u.age += dt; const a = u.age / u.life;
+      if (a >= 1) { s.visible = false; continue; }
+      s.position.addScaledVector(u.v, dt);
+      s.scale.setScalar(u.s0 + (u.s1 - u.s0) * a);
+      // beyaz-sarı → turuncu → kırmızımsı, sönerek
+      s.material.color.setRGB(1, 0.95 - a * 0.45, 0.8 - a * 0.7);
+      s.material.opacity = Math.pow(1 - a, 1.4) * 0.42 * ign;
+    }
+    // --- duman: yerdeyken kanaldan iki yana fışkırır; havada iz bırakır
+    const nearGround = alt < sp.h * 3;
+    if (firing && dt > 0) {
+      L.emitS += dt * (nearGround ? (REDUCED_MOTION ? 15 : 70) : (REDUCED_MOTION ? 6 : 26));
+      while (L.emitS >= 1) {
+        L.emitS -= 1;
+        L.si = emit(L.smoke, L.si, (s, u) => {
+          if (nearGround) {
+            const side = rnd() < 0.5 ? -1 : 1, spd = sp.h * (2.2 + rnd() * 2.2) * Math.min(1, ign + 0.3);
+            u.v.set((rnd() - 0.5) * spd * 0.35, rnd() * sp.h * 0.5, side * spd);
+            s.position.set(L.rocket.position.x + (rnd() - 0.5) * 2, 1.2 + rnd(), side * (2 + rnd() * 3));
+            u.life = 4 + rnd() * 3; u.s0 = sp.r * 4; u.s1 = sp.h * (1.2 + rnd() * 0.9); u.drag = 0.55;
+          } else {
+            u.v.copy(rv).multiplyScalar(0.05).add(new THREE.Vector3((rnd() - 0.5) * 2, (rnd() - 0.5) * 2, (rnd() - 0.5) * 2));
+            s.position.copy(nozzle).addScaledVector(down, sp.h * (0.35 + rnd() * 0.25)).add(new THREE.Vector3((rnd() - 0.5) * sp.r, 0, (rnd() - 0.5) * sp.r));
+            u.life = 5 + rnd() * 3; u.s0 = sp.r * 3; u.s1 = sp.h * (0.8 + rnd() * 0.6) * (1 + lift * 2); u.drag = 0.2;
+          }
+          u.age = 0; u.op = 0.55 + rnd() * 0.3; s.material.rotation = rnd() * 6.28; u.rot = (rnd() - 0.5) * 0.3;
+        });
+      }
+    }
+    for (const s of L.smoke) {
+      const u = s.userData; if (!s.visible) continue;
+      u.age += dt; const a = u.age / u.life;
+      if (a >= 1) { s.visible = false; continue; }
+      u.v.multiplyScalar(Math.max(0, 1 - u.drag * dt * 2));
+      u.v.y += dt * 0.6; // sıcak duman hafifçe yükselir
+      s.position.addScaledVector(u.v, dt);
+      if (s.position.y < 0.8) s.position.y = 0.8;
+      s.scale.setScalar(u.s0 + (u.s1 - u.s0) * Math.sqrt(a));
+      s.material.rotation += u.rot * dt;
+      // doğarken alevden turuncumsu, sonra güneşte beyaz-gri
+      const warm = Math.max(0, 1 - a * 6);
+      const shade = 0.82 + 0.18 * (1 - a);
+      s.material.color.setRGB(shade, shade * (1 - warm * 0.25), shade * (1 - warm * 0.5));
+      s.material.opacity = u.op * Math.min(1, a * 8) * (1 - a) * (1 - t * 0.6);
+    }
     // arıza: patlama
     const B = L.boom.userData;
     if (failed) {
       const k = Math.min(1, (p - 0.55) * 2.2);
       L.boom.position.copy(L.rocket.position); L.boom.position.y += sp.h * 0.4;
-      // ateş hızla büyüyüp söner, duman yavaşça büyüyüp kalır
       B.fire.forEach((f, i) => { const r = sp.h * (0.45 + k * 1.4) * (i ? 0.75 : 1); f.position.copy(f.userData.o).multiplyScalar(sp.h * 0.5 * k); f.scale.setScalar(r); f.material.opacity = Math.max(0, 1 - k * 1.3); });
-      B.dsmoke.forEach((d) => { d.position.copy(d.userData.o).multiplyScalar(sp.h * (0.3 + 0.9 * k)); d.scale.setScalar(sp.h * (0.4 + 1.3 * k)); d.material.opacity = Math.min(0.85, k * 2) * (1 - Math.max(0, k - 0.7)); });
+      B.dsmoke.forEach((d) => { d.position.copy(d.userData.o).multiplyScalar(sp.h * (0.3 + 0.9 * k)); d.scale.setScalar(sp.h * (0.4 + 1.3 * k)); d.material.opacity = Math.min(0.9, k * 2) * (1 - Math.max(0, k - 0.7)); });
     } else { B.fire.forEach((f) => { f.material.opacity = 0; }); B.dsmoke.forEach((d) => { d.material.opacity = 0; }); }
-    // kamera: rampaya yakın başlar, roketi izler; yükseldikçe geri çekilir
-    const focus = new THREE.Vector3(L.rocket.position.x, L.rocket.position.y + sp.h * 0.45, 0);
-    const back = sp.h * 2.4 + alt * 0.08;
-    L.cam.position.set(focus.x + back * 0.55, Math.max(2, focus.y - sp.h * 0.25 - alt * 0.04), focus.z + back);
+    // kamera: rampaya yakın, hafif aşağıdan; roketi izler, yükseldikçe geri çekilir
+    const focus = new THREE.Vector3(L.rocket.position.x, L.rocket.position.y + sp.h * 0.42, 0);
+    const back = sp.h * 2.6 + alt * 0.09;
+    L.cam.position.set(focus.x + back * 0.62, Math.max(1.6, focus.y - sp.h * 0.3 - alt * 0.04), focus.z + back);
     L.cam.lookAt(focus);
+    // gök kubbesi, güneş ve yıldızlar kamerayla gider (sonsuz uzakta gibi)
+    L.sky.position.copy(L.cam.position); L.stars.position.copy(L.cam.position);
+    L.sunSp.position.copy(L.cam.position).addScaledVector(L.sunDir, 1500);
     V.renderer.render(L.scene, L.cam);
     return true;
   }
-  function disposeScene(sc) { sc.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map) o.material.map.dispose(); }); }
+  function disposeScene(sc) { sc.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
 
 
   function hide3D(canvas) {
