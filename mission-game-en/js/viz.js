@@ -239,7 +239,9 @@ function drawFlight(canvas, sim, ui) {
   if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
   const g = canvas.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const now = REDUCED_MOTION ? 0 : performance.now() / 1000;
+  // duraklatınca canlandırmalar da dursun (ay, veri çizgisi): zamanı dondur
+  if (!ui.paused) ui.nowP = performance.now() / 1000;
+  const now = REDUCED_MOTION ? 0 : (ui.nowP != null ? ui.nowP : performance.now() / 1000);
   const sc = sim.sc, R = sim.R;
   g.font = '13px "Atkinson Hyperlegible Next", system-ui, sans-serif';
   const phase = sim.phase === 'ended' ? (sim.endReason === 'launch' ? 'launch' : sim.opsMonth > 0 || sim.inserted ? 'ops' : 'cruise') : sim.phase;
@@ -342,7 +344,7 @@ function drawFlight(canvas, sim, ui) {
   const a = Math.min(br * ob.viz.a, Math.min(W, H) * 0.46);
   const e = ob.viz.e, b = a * Math.sqrt(1 - e * e), fc = a * e, tilt = -0.35;
   const speed = 1.1 / Math.pow(Math.max(1, ob.viz.a), 0.9);
-  ui.orbAng = (ui.orbAng || 0) + speed * ui.dt * (sim.done ? 0.3 : 1);
+  ui.orbAng = (ui.orbAng || 0) + speed * ui.dt * (ui.paused ? 0 : sim.done ? 0.3 : 1); // duraklatınca durur
   const E = ui.orbAng + e * Math.sin(ui.orbAng);
   const lx = a * Math.cos(E) - fc, ly = b * Math.sin(E);
   const px = cx + lx * Math.cos(tilt) - ly * Math.sin(tilt);

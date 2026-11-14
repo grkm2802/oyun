@@ -122,9 +122,10 @@
     S.craft = new THREE.Group();
     const model = Craft3D.build(R);
     const sph = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
-    model.position.sub(sph.center);
-    const size = Math.max(0.26, S.extent * 0.1);
-    model.scale.setScalar(size / sph.radius);
+    const size = Math.max(0.26, S.extent * 0.1), ks = size / sph.radius;
+    model.scale.setScalar(ks);
+    // modelin merkezi tam yörünge çizgisinin üstünde olsun (kaydırma da ölçeklenmeli)
+    model.position.copy(sph.center).multiplyScalar(-ks);
     S.craft.add(model);
     S.plane.add(S.craft);
     // veri noktaları (Dünya yönüne akar)
@@ -147,7 +148,7 @@
       return new THREE.Vector3(x, 0, 1.6 + 0.07 * x * x);
     }
     const speed = 1.1 / Math.pow(Math.max(1, S.a), 0.9);
-    ui.orbAng = (ui.orbAng || 0) + speed * ui.dt * (sim.done ? 0.3 : 1);
+    ui.orbAng = (ui.orbAng || 0) + speed * ui.dt * (ui.paused ? 0 : sim.done ? 0.3 : 1); // duraklatınca durur
     const E = ui.orbAng + S.e * Math.sin(ui.orbAng);
     return new THREE.Vector3(S.a * Math.cos(E) - S.fc, 0, -S.b * Math.sin(E));
   }
@@ -181,7 +182,7 @@
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return true;
     if (V.w !== w || V.h !== h) { V.w = w; V.h = h; V.renderer.setSize(w, h, false); V.camera.aspect = w / h; V.camera.updateProjectionMatrix(); }
-    const S = V.S, dt = ui.dt || 0.016;
+    const S = V.S, dt = ui.paused ? 0 : (ui.dt || 0.016); // duraklatınca gezegen, ay ve veri akışı da durur
     V.t += dt;
     if (!REDUCED_MOTION) S.planet.rotation.y += dt * 0.06;
     if (S.moon) { const a = (REDUCED_MOTION ? 0 : V.t * 0.25) + 1; S.moon.position.set(Math.cos(a) * S.moonR, 0, -Math.sin(a) * S.moonR); }
