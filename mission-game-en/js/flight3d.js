@@ -194,8 +194,11 @@
     const key = sim; // her yeni uçuşta sahne yeniden kurulur
     if (V.key !== key || !V.S) { if (V.S && V.S.data) { V.scene.remove(V.S.data); V.S.data.geometry.dispose(); } build(sim); V.key = key; }
     labels(wrap, sim.sc);
-    // 2B canvas'ı boşalt (erişilebilirlik etiketi onda kalır)
-    if (!canvas.dataset.cleared) { const g = canvas.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.cleared = '1'; }
+    // varış: 3B görünüm yolculuk çiziminin üstünde yavaşça belirir, kamera uzaktan yaklaşır (ani geçmesin)
+    const nowMs = performance.now();
+    if (V.mode !== 'orbit') { V.mode = 'orbit'; V.arriveAt = nowMs; fadeIn(1400); }
+    // 2B canvas'ı boşalt (erişilebilirlik etiketi onda kalır) — belirme bitince, yoksa geçiş görünmez
+    if (!canvas.dataset.cleared && nowMs - V.arriveAt > 1500) { const g = canvas.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.cleared = '1'; }
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return true;
     if (V.w !== w || V.h !== h) { V.w = w; V.h = h; V.renderer.setSize(w, h, false); V.camera.aspect = w / h; V.camera.updateProjectionMatrix(); }
@@ -211,7 +214,9 @@
     else { S.craft.lookAt(S.plane.localToWorld(new THREE.Vector3(0, 0, 0))); } // aletler (+Z) gezegene baksın
     // kamera: sürükleyince döner; kendiliğinden dönmez (gece tarafına kaymasın, gezegen zaten dönüyor)
     const fov = (V.camera.fov * Math.PI) / 180;
-    const fit = S.extent / Math.sin(Math.atan(Math.tan(fov / 2) * Math.min(1, V.camera.aspect))) * 1.05;
+    let fit = S.extent / Math.sin(Math.atan(Math.tan(fov / 2) * Math.min(1, V.camera.aspect))) * 1.05;
+    // varış yaklaşması: ilk ~3 sn kamera uzaktan yavaşlayarak yaklaşır
+    if (!REDUCED_MOTION) { const k = Math.min(1, (nowMs - V.arriveAt) / 3200), e = 1 - Math.pow(1 - k, 3); fit *= 1 + 2.4 * (1 - e); }
     Craft3D.nav.placeCamera(V.camera, new THREE.Vector3(0, 0, 0), V.nav, fit);
     // veri akışı: aracın dünya konumundan Dünya yönüne; gezegen arada ise yok
     const wp = S.craft.getWorldPosition(new THREE.Vector3());
@@ -514,6 +519,7 @@
     if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
     const lb = wrap.querySelector('.viz-3d-labels'); if (lb) lb.hidden = true;
     if (!V.L || V.L.sim !== sim) { if (V.L) { disposeScene(V.L.scene); disposeScene(V.L.far); } V.L = buildLaunch(sim); }
+    if (V.mode !== 'launch') { V.mode = 'launch'; fadeIn(600); }
     if (!canvas.dataset.cleared) { const g = canvas.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.cleared = '1'; }
     const w = wrap.clientWidth, h = wrap.clientHeight;
     if (!w || !h) return true;
@@ -657,9 +663,28 @@
   function disposeScene(sc) { sc.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); }); }
 
 
+  // 3B görünümü yumuşakça aç / kapat (CSS opaklık geçişi); hareketleri azalt açıksa anında
+  function fadeIn(ms) {
+    if (V.hideTimer) { clearTimeout(V.hideTimer); V.hideTimer = 0; }
+    V.cv.hidden = false;
+    if (REDUCED_MOTION) { V.cv.style.transition = ''; V.cv.style.opacity = ''; return; }
+    V.cv.style.transition = 'none'; V.cv.style.opacity = '0';
+    void V.cv.offsetWidth; // başlangıç opaklığını uygula
+    V.cv.style.transition = 'opacity ' + ms + 'ms ease'; V.cv.style.opacity = '1';
+  }
+
   function hide3D(canvas) {
     if (!V) return;
-    V.cv.hidden = true; if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
+    // fırlatma/yörüngeden 2B'ye geçerken 3B görünüm yavaşça kaybolur; altındaki 2B çizim ortaya çıkar
+    if (V.mode !== '2d') {
+      V.mode = '2d';
+      if (REDUCED_MOTION || V.cv.hidden) V.cv.hidden = true;
+      else {
+        V.cv.style.transition = 'opacity 1100ms ease'; V.cv.style.opacity = '0';
+        V.hideTimer = setTimeout(() => { if (V.mode === '2d') { V.cv.hidden = true; } V.hideTimer = 0; }, 1150);
+      }
+    }
+    if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
     const wrap = canvas.parentElement, lb = wrap && wrap.querySelector('.viz-3d-labels');
     if (lb) lb.hidden = true;
     delete canvas.dataset.cleared;
