@@ -172,15 +172,22 @@
     box.hidden = false;
   }
 
-  function render3D(canvas, sim, ui) {
-    const wrap = canvas.parentElement;
-    if (!wrap) return false;
+  // 3B tuvali uçuş görünümünün kabına yerleştir (ekran yeniden çizilince yeni kaba taşınır)
+  function attachCanvas(wrap) {
     if (!V) V = createView();
     if (V.cv.parentElement !== wrap) {
       wrap.appendChild(V.cv); V.key = null; V.wrap = wrap;
       V.bar = Craft3D.nav.toolbar(wrap, () => V.wrap, V.nav, () => {}, 'viz-tools');
     }
-    V.cv.hidden = false; if (V.bar && V.bar.hidden) { V.bar.hidden = false; V.bar.sync(); }
+    V.cv.hidden = false;
+    return true;
+  }
+
+  function render3D(canvas, sim, ui) {
+    const wrap = canvas.parentElement;
+    if (!wrap) return false;
+    attachCanvas(wrap);
+    if (V.bar && V.bar.hidden) { V.bar.hidden = false; V.bar.sync(); }
     // karar penceresi tam ekranın dışında kalır: karar gerekince tam ekrandan çık
     if (sim.pending && Craft3D.nav.isFull(wrap)) Craft3D.nav.exitFull(wrap);
     const key = sim; // her yeni uçuşta sahne yeniden kurulur
@@ -220,9 +227,198 @@
       }
       S.data.geometry.attributes.position.needsUpdate = true;
     }
+    V.camera.aspect = w / h; V.camera.updateProjectionMatrix();
     V.renderer.render(V.scene, V.camera);
     return true;
   }
+
+  /* ---------------- 3B fırlatma sahnesi ----------------
+     ui.launchAnim 0→1 (ui.js): 0–0,1 ateşleme, sonra roket hızlanarak yükselir; ~0,5'te fırlatma sonucu belli olur.
+     Arıza (sim.endReason === 'launch') 0,55'ten sonra patlama. Roketin boyu ve yan roketleri seçilen rokete göre. */
+  const ROCKETS = {
+    rideshare: { h: 9, r: 0.42, boosters: 0 },
+    small: { h: 8, r: 0.38, boosters: 0 },
+    medium: { h: 12, r: 0.55, boosters: 0 },
+    heavy: { h: 14, r: 0.6, boosters: 2 },
+    superheavy: { h: 19, r: 0.85, boosters: 2 },
+  };
+  function softTex(inner, outer) {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, inner); gr.addColorStop(1, outer);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+  function buildRocket(spec) {
+    const g = new THREE.Group();
+    const white = new THREE.MeshStandardMaterial({ color: 0xf2f3f5, roughness: 0.5, metalness: 0.1 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.6, metalness: 0.3 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0x5a6069, roughness: 0.35, metalness: 0.85 });
+    const { h, r } = spec;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h * 0.78, 32), white); body.position.y = h * 0.39; g.add(body);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.01, r * 1.01, h * 0.03, 32), dark); band.position.y = h * 0.55; g.add(band);
+    // faydalı yük kaplaması (fairing) + burun
+    const fair = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.12, r * 1.02, h * 0.1, 32), white); fair.position.y = h * 0.83; g.add(fair);
+    const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector2(r * 1.12 * Math.sqrt(1 - t * t), t * h * 0.14)); }
+    const nose = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), white); nose.position.y = h * 0.88; g.add(nose);
+    // motor ağızları
+    const bellPts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; bellPts.push(new THREE.Vector2(r * (0.25 + 0.45 * Math.pow(t, 0.7)), -t * r * 0.9)); }
+    const bellGeo = new THREE.LatheGeometry(bellPts, 20);
+    const nb = spec.r > 0.5 ? 3 : 1;
+    for (let i = 0; i < nb; i++) { const b = new THREE.Mesh(bellGeo, metal); const a = (i / nb) * Math.PI * 2; if (nb > 1) b.position.set(Math.cos(a) * r * 0.45, 0, Math.sin(a) * r * 0.45); b.scale.setScalar(nb > 1 ? 0.6 : 1); g.add(b); }
+    // kanatçıklar
+    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.04, h * 0.08, r * 0.7), dark); const a = (i / 4) * Math.PI * 2 + Math.PI / 4; f.position.set(Math.cos(a) * r * 1.15, h * 0.05, Math.sin(a) * r * 1.15); f.rotation.y = -a; g.add(f); }
+    // yan roketler
+    const boosters = [];
+    for (let i = 0; i < spec.boosters; i++) {
+      const side = i === 0 ? -1 : 1, bg = new THREE.Group(), br = r * 0.75, bh = h * 0.62;
+      const bb = new THREE.Mesh(new THREE.CylinderGeometry(br, br, bh, 24), white); bb.position.y = bh / 2; bg.add(bb);
+      const bn = new THREE.Mesh(new THREE.ConeGeometry(br, br * 2, 24), white); bn.position.y = bh + br; bg.add(bn);
+      const bm = new THREE.Mesh(bellGeo, metal); bm.scale.setScalar(0.8); bg.add(bm);
+      bg.position.x = side * (r + br + 0.05); g.add(bg); boosters.push(bg);
+    }
+    return { g, boosters };
+  }
+  function makeFlame(len, rad) {
+    const f = new THREE.Group();
+    const outer = new THREE.Mesh(new THREE.ConeGeometry(rad, len, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    outer.rotation.x = Math.PI; outer.position.y = -len / 2; f.add(outer);
+    const inner = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.55, len * 0.55, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff3d0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    inner.rotation.x = Math.PI; inner.position.y = -len * 0.275; f.add(inner);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex('rgba(255,210,140,1)', 'rgba(255,140,40,0)'), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    glow.scale.setScalar(rad * 6); glow.position.y = -rad * 0.6; f.add(glow);
+    return f;
+  }
+
+  function buildLaunch(sim) {
+    const spec = ROCKETS[sim.R.d.launcher] || ROCKETS.medium;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x4a78bf);
+    scene.fog = new THREE.Fog(0x7f9cc4, 700, 3000);
+    const cam = new THREE.PerspectiveCamera(42, 1.6, 0.1, 3000);
+    const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.position.set(-40, 60, 30); scene.add(sun);
+    const hemi = new THREE.HemisphereLight(0xb8d4ff, 0x3a4a30, 0.6); scene.add(hemi);
+    // zemin: kıyı otu + beton rampa + alev kanalı
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ color: 0x1c2b13 }));
+    ground.rotation.x = -Math.PI / 2; scene.add(ground);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1400), new THREE.MeshStandardMaterial({ color: 0x123150, roughness: 0.35, metalness: 0.2 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.02, -900); scene.add(sea);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(7, 7.6, 0.6, 48), new THREE.MeshStandardMaterial({ color: 0x7d8086, roughness: 0.95 }));
+    pad.position.y = 0.3; scene.add(pad);
+    const trench = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.65, 10), new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 1 }));
+    trench.position.set(0, 0.31, 5.5); scene.add(trench);
+    // kule: kafes direk + kollar
+    const steel = new THREE.MeshStandardMaterial({ color: 0x6c3a2e, roughness: 0.7, metalness: 0.4 });
+    const tower = new THREE.Group(), th = spec.h * 1.15, tw = 1.6;
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.14, th, 0.14), steel); p.position.set(x * tw / 2, th / 2, z * tw / 2); tower.add(p); }
+    for (let y = 1; y < th; y += 1.2) {
+      for (const [w, d, x, z] of [[tw, 0.08, 0, -tw / 2], [tw, 0.08, 0, tw / 2], [0.08, tw, -tw / 2, 0], [0.08, tw, tw / 2, 0]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, d), steel); b.position.set(x, y, z); tower.add(b); }
+    }
+    for (const yy of [spec.h * 0.45, spec.h * 0.8]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(spec.r + 2.2, 0.25, 0.5), steel); arm.position.set(-(spec.r + 2.2) / 2 + 0.2, yy, 0); tower.add(arm); }
+    tower.position.set(spec.r + 2.6 + (spec.boosters ? spec.r * 1.6 : 0), 0.6, 0); scene.add(tower);
+    // roket
+    const { g: rocket, boosters } = buildRocket(spec);
+    rocket.position.y = 0.6 + spec.r * 0.9; scene.add(rocket);
+    const flames = [makeFlame(spec.h * 0.5, spec.r * 0.9)];
+    rocket.add(flames[0]);
+    boosters.forEach((b) => { const f = makeFlame(spec.h * 0.35, spec.r * 0.6); b.add(f); flames.push(f); });
+    // yıldızlar (yükseldikçe görünür)
+    const stars = Craft3D.nav.makeStars(1200, 1500, 11);
+    stars.traverse((o) => { if (o.material) { o.material.transparent = true; o.material.opacity = 0; o.material.fog = false; } });
+    scene.add(stars);
+    // duman bulutları
+    const smokeTex = softTex('rgba(235,235,235,0.9)', 'rgba(200,200,200,0)');
+    const smoke = [];
+    for (let i = 0; i < 70; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0 }));
+      s.userData = { born: -1 }; scene.add(s); smoke.push(s);
+    }
+    // patlama
+    // patlama: turuncu ateş topu + koyu duman (normal karışım; toplamalı karışım gökyüzünde soluk görünüyordu)
+    const fireTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(255,248,220,1)'); gr.addColorStop(0.25, 'rgba(255,196,80,1)'); gr.addColorStop(0.55, 'rgba(238,96,24,0.9)'); gr.addColorStop(1, 'rgba(120,30,10,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+    const boom = new THREE.Group();
+    const fire = []; const dsmoke = [];
+    for (let i = 0; i < 7; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireTex, transparent: true, depthWrite: false, opacity: 0, fog: false })); f.userData.o = new THREE.Vector3(Math.cos(i * 2.4), Math.sin(i * 1.7) * 0.8, Math.sin(i * 2.4)).multiplyScalar(i ? 0.5 : 0); boom.add(f); fire.push(f); }
+    const dTex = softTex('rgba(28,26,25,0.95)', 'rgba(20,20,20,0)');
+    for (let i = 0; i < 9; i++) { const d = new THREE.Sprite(new THREE.SpriteMaterial({ map: dTex, transparent: true, depthWrite: false, opacity: 0, fog: false })); d.userData.o = new THREE.Vector3(Math.cos(i * 1.9), Math.sin(i * 2.3) * 0.7 + 0.2, Math.sin(i * 1.9)); boom.add(d); dsmoke.push(d); }
+    boom.userData = { fire, dsmoke };
+    scene.add(boom);
+    return { scene, cam, spec, rocket, flames, stars, smoke, boom, sky0: new THREE.Color(0x4a78bf), sky1: new THREE.Color(0x03050a), fog0: new THREE.Color(0x7f9cc4), si: 0, lastP: 0, sim };
+  }
+
+  function renderLaunch(canvas, sim, ui) {
+    const wrap = canvas.parentElement;
+    if (!wrap) return false;
+    if (!attachCanvas(wrap)) return false;
+    // fırlatmada gezinme araçları ve yörünge etiketleri yok
+    if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
+    const lb = wrap.querySelector('.viz-3d-labels'); if (lb) lb.hidden = true;
+    if (!V.L || V.L.sim !== sim) { if (V.L) disposeScene(V.L.scene); V.L = buildLaunch(sim); }
+    if (!canvas.dataset.cleared) { const g = canvas.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); canvas.dataset.cleared = '1'; }
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return true;
+    const L = V.L, sp = L.spec;
+    if (V.w !== w || V.h !== h) { V.w = w; V.h = h; V.renderer.setSize(w, h, false); }
+    if (L.cam.aspect !== w / h) { L.cam.aspect = w / h; L.cam.updateProjectionMatrix(); }
+    const p = ui.launchAnim || 0, now = performance.now() / 1000;
+    const failed = sim.endReason === 'launch' && p > 0.55;
+    // arızada roket patladığı yerde kalır (patlama yükselmeye devam etmesin)
+    const lift = Math.max(0, (failed ? 0.55 : p) - 0.1) / 0.9;
+    const alt = lift * lift * 900; // yükseklik (sahne birimi)
+    // gökyüzü yükseldikçe kararır, yıldızlar çıkar
+    const t = Math.min(1, alt / 500);
+    L.scene.background.copy(L.sky0).lerp(L.sky1, t);
+    L.scene.fog.color.copy(L.fog0).lerp(L.sky1, t);
+    L.stars.traverse((o) => { if (o.material) o.material.opacity = Math.max(0, (t - 0.35) / 0.65); });
+    // roket: hafif yatış (yörüngeye dönüş manevrası)
+    const baseY = 0.6 + sp.r * 0.9;
+    L.rocket.position.set(alt * 0.05 * lift, baseY + alt, 0);
+    L.rocket.rotation.z = -0.35 * lift * lift;
+    L.rocket.visible = !failed;
+    // alev: ateşlemeyle büyür, titrer
+    const ign = Math.min(1, p / 0.08), fl = REDUCED_MOTION ? 1 : 1 + Math.sin(now * 40) * 0.06 + Math.sin(now * 23) * 0.05;
+    L.flames.forEach((f) => { f.visible = p > 0.01 && !failed; f.scale.set(1, (0.3 + 0.7 * ign) * fl * (1 + lift * 0.6), 1); });
+    // duman: kalkışta rampadan yayılır, sonra roketin arkasında iz
+    if (!REDUCED_MOTION && p > 0.02 && !failed && p > L.lastP) {
+      const n = alt < 40 ? 3 : 1;
+      for (let k = 0; k < n; k++) {
+        const s = L.smoke[L.si++ % L.smoke.length];
+        const ground = alt < 25;
+        s.userData = { born: now, life: ground ? 3.5 : 2.2, vx: (Math.random() - 0.5) * (ground ? 14 : 2), vy: ground ? Math.random() * 2 : -3, vz: (Math.random() - 0.5) * (ground ? 14 : 2), s0: sp.r * (ground ? 4 : 3), grow: ground ? 14 : 5 };
+        s.position.set(L.rocket.position.x + (Math.random() - 0.5) * sp.r, ground ? 1.2 : L.rocket.position.y - sp.h * 0.1, (Math.random() - 0.5) * sp.r);
+      }
+    }
+    L.smoke.forEach((s) => {
+      const u = s.userData; if (u.born < 0) return;
+      const a = (now - u.born) / u.life;
+      if (a >= 1) { u.born = -1; s.material.opacity = 0; return; }
+      const dt = ui.paused ? 0 : (ui.dt || 0.016);
+      s.position.x += u.vx * dt; s.position.y += u.vy * dt; s.position.z += u.vz * dt;
+      s.scale.setScalar(u.s0 + u.grow * a * sp.r * 3);
+      s.material.opacity = 0.75 * (1 - a);
+    });
+    L.lastP = p;
+    // arıza: patlama
+    const B = L.boom.userData;
+    if (failed) {
+      const k = Math.min(1, (p - 0.55) * 2.2);
+      L.boom.position.copy(L.rocket.position); L.boom.position.y += sp.h * 0.4;
+      // ateş hızla büyüyüp söner, duman yavaşça büyüyüp kalır
+      B.fire.forEach((f, i) => { const r = sp.h * (0.45 + k * 1.4) * (i ? 0.75 : 1); f.position.copy(f.userData.o).multiplyScalar(sp.h * 0.5 * k); f.scale.setScalar(r); f.material.opacity = Math.max(0, 1 - k * 1.3); });
+      B.dsmoke.forEach((d) => { d.position.copy(d.userData.o).multiplyScalar(sp.h * (0.3 + 0.9 * k)); d.scale.setScalar(sp.h * (0.4 + 1.3 * k)); d.material.opacity = Math.min(0.85, k * 2) * (1 - Math.max(0, k - 0.7)); });
+    } else { B.fire.forEach((f) => { f.material.opacity = 0; }); B.dsmoke.forEach((d) => { d.material.opacity = 0; }); }
+    // kamera: rampaya yakın başlar, roketi izler; yükseldikçe geri çekilir
+    const focus = new THREE.Vector3(L.rocket.position.x, L.rocket.position.y + sp.h * 0.45, 0);
+    const back = sp.h * 2.4 + alt * 0.08;
+    L.cam.position.set(focus.x + back * 0.55, Math.max(2, focus.y - sp.h * 0.25 - alt * 0.04), focus.z + back);
+    L.cam.lookAt(focus);
+    V.renderer.render(L.scene, L.cam);
+    return true;
+  }
+  function disposeScene(sc) { sc.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map) o.material.map.dispose(); }); }
+
 
   function hide3D(canvas) {
     if (!V) return;
@@ -238,8 +434,8 @@
 
   window.drawFlight = function (canvas, sim, ui) {
     const ph = phaseOf(sim);
-    if (!failed && ph !== 'launch' && ph !== 'cruise' && window.Craft3D && Craft3D.ready()) {
-      try { if (render3D(canvas, sim, ui)) return; } catch (e) { console.error(e); failed = true; }
+    if (!failed && ph !== 'cruise' && window.Craft3D && Craft3D.ready()) {
+      try { if (ph === 'launch' ? renderLaunch(canvas, sim, ui) : render3D(canvas, sim, ui)) return; } catch (e) { console.error(e); failed = true; }
     }
     hide3D(canvas);
     draw2D(canvas, sim, ui);

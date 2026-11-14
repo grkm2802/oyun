@@ -550,3 +550,9 @@ body:has(.v3-full) { overflow: hidden; }
   .ws-stage:not(.v3-full):not(:fullscreen) .v3-help, .viz-wrap:not(.v3-full):not(:fullscreen) .v3-help { display: none; }
   .viz-wrap .v3-help { top: 96px; }
 }
+
+/* gizli araç çubuğu (fırlatma sırasında) */
+.v3-tools[hidden] { display: none; }
+
+/* görev durumu ve saat 3B görünümün üstünde kalsın */
+.viz-wrap .viz-hud { z-index: 3; }
