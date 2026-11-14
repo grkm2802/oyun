@@ -112,6 +112,15 @@
       S.extent = 3.4;
     } else {
       S.a = Math.max(1.05, ob.viz.a); S.e = ob.viz.e || 0;
+      // Uydu gezegenin içine girmesin: yörüngenin en yakın noktası (a·(1−e)) gezegen yüzeyi + büyütülmüş uydu
+      // boyunun dışında kalmalı. En uzak nokta korunur; basık elipslerde (Jüpiter, Mars eliptik, NRHO) en yakın nokta dışarı çekilir.
+      const ra = S.a * (1 + S.e);
+      const sizeEst = Math.max(0.26, Math.max(1.65, ra + 0.2, S.jup ? S.moonR + 0.4 : 0) * 0.1);
+      const rpMin = 1.08 + sizeEst; // uydunun yarıçapı = sizeEst
+      if (S.a * (1 - S.e) < rpMin) {
+        if (S.e > 0 && ra > rpMin) { S.a = (ra + rpMin) / 2; S.e = (ra - rpMin) / (ra + rpMin); }
+        else { S.a = rpMin; S.e = 0; }
+      }
       const b = S.a * Math.sqrt(1 - S.e * S.e), fc = S.a * S.e, pts = [];
       for (let i = 0; i <= 160; i++) { const E = (i / 160) * Math.PI * 2; pts.push(new THREE.Vector3(S.a * Math.cos(E) - fc, 0, b * Math.sin(E))); }
       S.plane.add(line(pts, 0xffffff, 0.32));
