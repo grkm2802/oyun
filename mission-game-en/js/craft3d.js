@@ -552,7 +552,7 @@
   // NASA dokulu 3B gezegen hazırsa atölyedeki 2B gezegen resmini gizle
   function hideImg() {
     const img = V.host.parentElement && V.host.parentElement.querySelector('.ws-planet');
-    if (img) img.style.visibility = V.planet ? 'hidden' : '';
+    if (img) img.style.visibility = 'hidden'; // 3B görünümde 2B gezegen resmi de gösterilmez
   }
   // Gezegen sahnenin içinde gerçek bir küre: ilk görünüşte (başlangıç kamerasından) aracın arkasında, sağ altta.
   // Kamera dönünce ve serbest kamerayla gezerken yeri değişir; yanına uçulabilir.
@@ -668,7 +668,8 @@
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde
     build(R) { const g = new THREE.Group(); buildParts(R).forEach((p) => g.add(p.obj)); return g; },
     show(host, R) {
-      try { attach(host); setParts(R); setPlanet(R.sc.body); kick(); return true; } catch (e) { console.error(e); state = 'fail'; return false; }
+      // atölyede arka planda gezegen yok (kullanıcı isteği); sadece araç ve yıldızlar
+      try { attach(host); setParts(R); kick(); return true; } catch (e) { console.error(e); state = 'fail'; return false; }
     },
   };
 })();
