@@ -847,7 +847,7 @@ function switchLang(lang) {
   const carry = { scenario: S.scenario, difficulty: S.difficulty, mode: S.mode, nPlayers: S.nPlayers, names: S.names,
     design: S.screen === 'title' ? null : S.design, step: S.screen === 'design' ? S.step : 'review' };
   try { localStorage.setItem('ma_lang', lang); } catch { /* depolama yok */ }
-  try { sessionStorage.setItem('ma_carry', JSON.stringify(carry)); } catch { /* depolama yok */ }
+  try { sessionStorage.setItem('ma_carry', JSON.stringify(carry)); sessionStorage.setItem('ma_intro_skip', '1'); } catch { /* depolama yok */ }
   if (window.MA_LOADER) location.reload();
   else location.href = lang === 'en' ? '../mission-game-en/index.html' : '../mission-game/index.html';
 }

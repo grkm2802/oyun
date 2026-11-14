@@ -2,7 +2,7 @@
    1) Açılış videosu (mission-game/media/acilis-ekrani.mp4) tam ekran oynar (sessiz başlar; "Sesi aç" ve "Geç" düğmeleri).
    2) Video siyah ekranla biter → siyah ekranın ortasında "Başla" düğmesi.
    3) Başla'ya basınca bir roket ateş ve duman püskürterek yukarı uzaklaşır, ekran kararıp açılır ve site görünür.
-   - Aynı sekmede bir kez gösterilir (sessionStorage 'ma_intro'): dil değişince sayfa yenilenir, video tekrar oynamaz.
+   - Site her açıldığında oynar. Sadece dil değişimi yenilemesinde atlanır (ui.js switchLang sessionStorage 'ma_intro_skip' koyar, burada silinir).
    - Hareketleri azalt (prefers-reduced-motion) açıksa video kendiliğinden oynamaz; doğrudan Başla gösterilir, roket uçuşu yerine kısa geçiş.
    - Video yüklenemezse (dosya yok, eski tarayıcı) doğrudan Başla gösterilir.
    - Rehberli tur (tour.js) açılış bitene kadar bekler: window.MA_INTRO_ACTIVE ve 'ma:intro-done' olayı. */
@@ -10,7 +10,7 @@
   'use strict';
   var root = document.documentElement;
   var seen = false;
-  try { seen = sessionStorage.getItem('ma_intro') === '1'; } catch (e) { /* depolama yok */ }
+  try { seen = sessionStorage.getItem('ma_intro_skip') === '1'; sessionStorage.removeItem('ma_intro_skip'); } catch (e) { /* depolama yok */ }
   if (seen) { root.classList.remove('intro-pending'); return; }
   var lang = 'tr';
   try { lang = localStorage.getItem('ma_lang') || root.getAttribute('data-default-lang') || 'tr'; } catch (e) { /* */ }
@@ -65,7 +65,6 @@
   function finish() {
     if (stage === 'done') return;
     stage = 'done';
-    try { sessionStorage.setItem('ma_intro', '1'); } catch (e) { /* */ }
     box.classList.add('out');
     window.MA_INTRO_ACTIVE = false;
     setTimeout(function () {

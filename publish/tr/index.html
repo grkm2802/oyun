@@ -18,7 +18,7 @@
   document.documentElement.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı' : 'Mission Architect';
   var introSeen = false;
-  try { introSeen = sessionStorage.getItem('ma_intro') === '1'; } catch (e) { introSeen = false; }
+  try { introSeen = sessionStorage.getItem('ma_intro_skip') === '1'; sessionStorage.removeItem('ma_intro_skip'); } catch (e) { introSeen = false; } // sadece dil değişimi yenilemesinde bir kez atlanır
   if (!introSeen) {
     document.documentElement.classList.add('intro-pending');
     var si = document.createElement('script'); si.src = 'intro.js'; si.async = false; document.body.appendChild(si);

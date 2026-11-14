@@ -16,7 +16,7 @@
   document.title = lang === 'tr' ? 'Görev Mimarı · Mission Architect' : 'Mission Architect · Görev Mimarı';
   // açılış ekranı (intro.js): aynı sekmede bir kez; yüklenene kadar site görünmesin
   var introSeen = false;
-  try { introSeen = sessionStorage.getItem('ma_intro') === '1'; } catch (e) { introSeen = false; }
+  try { introSeen = sessionStorage.getItem('ma_intro_skip') === '1'; sessionStorage.removeItem('ma_intro_skip'); } catch (e) { introSeen = false; } // sadece dil değişimi yenilemesinde bir kez atlanır
   if (!introSeen) root.classList.add('intro-pending');
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
   (introSeen ? [] : ['intro.js']).concat(['firebase-config.js']).concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
