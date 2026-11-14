@@ -32,6 +32,60 @@ function makeNoise(seed) {
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
+/* Gezegen yüzeyinin rengi: birim küre üzerindeki (x, y, z) noktası için [r, g, b].
+   y aşağı doğru (resim düzeni): y = -1 kuzey kutbu. bodyTexture (2B) ve flight3d.js (3B doku) kullanır. */
+const BODY_COLOR = {};
+function bodyColorFn(body) {
+  if (BODY_COLOR[body]) return BODY_COLOR[body];
+  const fbm = makeNoise(body.length * 977 + body.charCodeAt(0));
+  const craters = [];
+  if (body === 'Moon') { const r = seeded(11); for (let i = 0; i < 40; i++) { const th = r() * 6.283, z = r() * 2 - 1, s = Math.sqrt(1 - z * z); craters.push([s * Math.cos(th), z, s * Math.sin(th), 0.03 + r() * r() * 0.16]); } }
+  const fn = (x, y, z) => {
+    let col;
+    if (body === 'Earth') {
+      const h = fbm(x * 1.6 + 3, y * 1.6, z * 1.6, 6);
+      const land = h > 0.5;
+      const lat = Math.abs(y);
+      if (lat > 0.88) col = [236, 240, 245];
+      else if (land) { const d = fbm(x * 4, y * 4 + 7, z * 4, 4); col = mix([62, 112, 52], [158, 132, 84], sstep(0.4, 0.62, d) * (1 - lat * 0.3)); }
+      else col = mix([14, 48, 112], [26, 82, 150], sstep(0.35, 0.53, h));
+      const cl = fbm(x * 3 + 11, y * 5, z * 3, 5);
+      col = mix(col, [245, 247, 250], sstep(0.52, 0.7, cl) * 0.85);
+    } else if (body === 'Moon') {
+      const h = fbm(x * 2.2, y * 2.2, z * 2.2, 5);
+      const mare = sstep(0.5, 0.6, fbm(x * 0.9 + 5, y * 0.9, z * 0.9, 3));
+      col = mix([170, 170, 168], [104, 104, 104], mare * 0.8);
+      col = mix(col, [190, 190, 186], (h - 0.5) * 0.9 + 0.2);
+      for (const [cx, cy, cz, cr] of craters) {
+        const d = Math.hypot(x - cx, y - cy, z - cz);
+        if (d < cr * 1.25) { const k = d / cr; col = k < 1 ? mix(col, [118, 118, 116], 0.35 * (1 - k)) : mix(col, [205, 205, 200], 0.4 * (1.25 - k) * 4); }
+      }
+    } else if (body === 'Mars') {
+      const h = fbm(x * 2, y * 2, z * 2, 6);
+      const dark = sstep(0.5, 0.62, fbm(x * 1.2 + 9, y * 1.2, z * 1.2, 4));
+      col = mix([196, 102, 58], [222, 140, 90], h);
+      col = mix(col, [110, 58, 38], dark * 0.65);
+      if (y < -0.86) col = mix(col, [240, 236, 230], sstep(-0.86, -0.92, y));
+    } else if (body === 'Europa') {
+      const b = fbm(x * 2, y * 2, z * 2, 4);
+      col = mix([214, 200, 172], [236, 228, 212], b);
+      const ridge = 1 - Math.abs(2 * fbm(x * 3.5 + 2, y * 3.5, z * 3.5, 5) - 1);
+      const ridge2 = 1 - Math.abs(2 * fbm(x * 6 + 8, y * 6, z * 6, 4) - 1);
+      col = mix(col, [150, 98, 64], Math.pow(ridge, 14) * 0.85 + Math.pow(ridge2, 18) * 0.5);
+    } else { // Jupiter
+      const w = fbm(x * 3, y * 3, z * 3, 5);
+      const band = Math.sin((y + (w - 0.5) * 0.25) * 22);
+      col = mix([214, 186, 150], [240, 226, 204], band * 0.5 + 0.5);
+      col = mix(col, [158, 112, 80], sstep(0.6, 0.95, -band) * 0.6 * (1 - Math.abs(y)));
+      const sx = (x + 0.25) / 0.2, sy = (y - 0.32) / 0.11;
+      if (sx * sx + sy * sy < 1) col = mix(col, [190, 92, 62], 0.75 * (1 - (sx * sx + sy * sy)));
+    }
+    return col;
+  };
+  BODY_COLOR[body] = fn;
+  return fn;
+}
+
 /* Bir gezegenin aydınlatılmış küre görüntüsü. Işık sol-üstten gelir. */
 const TEX = {};
 function bodyTexture(body, size = 256) {
@@ -40,11 +94,9 @@ function bodyTexture(body, size = 256) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d');
   const img = g.createImageData(size, size), D = img.data;
-  const fbm = makeNoise(body.length * 977 + body.charCodeAt(0));
   const R = size / 2 - 1;
   const L = (() => { const v = [-0.75, -0.35, 0.56], m = Math.hypot(...v); return v.map((x) => x / m); })();
-  const craters = [];
-  if (body === 'Moon') { const r = seeded(11); for (let i = 0; i < 40; i++) { const th = r() * 6.283, z = r() * 2 - 1, s = Math.sqrt(1 - z * z); craters.push([s * Math.cos(th), z, s * Math.sin(th), 0.03 + r() * r() * 0.16]); } }
+  const colorAt = bodyColorFn(body);
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
       const x = (px - size / 2 + 0.5) / R, y = (py - size / 2 + 0.5) / R;
@@ -52,45 +104,7 @@ function bodyTexture(body, size = 256) {
       const i = (py * size + px) * 4;
       if (rr > 1) { D[i + 3] = 0; continue; }
       const z = Math.sqrt(1 - rr);
-      let col;
-      if (body === 'Earth') {
-        const h = fbm(x * 1.6 + 3, y * 1.6, z * 1.6, 6);
-        const land = h > 0.53;
-        const lat = Math.abs(y);
-        if (lat > 0.88) col = [236, 240, 245];
-        else if (land) { const d = fbm(x * 4, y * 4 + 7, z * 4, 4); col = mix([62, 112, 52], [158, 132, 84], sstep(0.4, 0.62, d) * (1 - lat * 0.3)); }
-        else col = mix([14, 48, 112], [26, 82, 150], sstep(0.35, 0.53, h));
-        const cl = fbm(x * 3 + 11, y * 5, z * 3, 5);
-        col = mix(col, [245, 247, 250], sstep(0.52, 0.7, cl) * 0.85);
-      } else if (body === 'Moon') {
-        const h = fbm(x * 2.2, y * 2.2, z * 2.2, 5);
-        const mare = sstep(0.5, 0.6, fbm(x * 0.9 + 5, y * 0.9, z * 0.9, 3));
-        col = mix([170, 170, 168], [104, 104, 104], mare * 0.8);
-        col = mix(col, [190, 190, 186], (h - 0.5) * 0.9 + 0.2);
-        for (const [cx, cy, cz, cr] of craters) {
-          const d = Math.hypot(x - cx, y - cy, z - cz);
-          if (d < cr * 1.25) { const k = d / cr; col = k < 1 ? mix(col, [118, 118, 116], 0.35 * (1 - k)) : mix(col, [205, 205, 200], 0.4 * (1.25 - k) * 4); }
-        }
-      } else if (body === 'Mars') {
-        const h = fbm(x * 2, y * 2, z * 2, 6);
-        const dark = sstep(0.5, 0.62, fbm(x * 1.2 + 9, y * 1.2, z * 1.2, 4));
-        col = mix([196, 102, 58], [222, 140, 90], h);
-        col = mix(col, [110, 58, 38], dark * 0.65);
-        if (y < -0.86) col = mix(col, [240, 236, 230], sstep(-0.86, -0.92, y));
-      } else if (body === 'Europa') {
-        const b = fbm(x * 2, y * 2, z * 2, 4);
-        col = mix([214, 200, 172], [236, 228, 212], b);
-        const ridge = 1 - Math.abs(2 * fbm(x * 3.5 + 2, y * 3.5, z * 3.5, 5) - 1);
-        const ridge2 = 1 - Math.abs(2 * fbm(x * 6 + 8, y * 6, z * 6, 4) - 1);
-        col = mix(col, [150, 98, 64], Math.pow(ridge, 14) * 0.85 + Math.pow(ridge2, 18) * 0.5);
-      } else { // Jupiter
-        const w = fbm(x * 3, y * 3, z * 3, 5);
-        const band = Math.sin((y + (w - 0.5) * 0.25) * 22);
-        col = mix([214, 186, 150], [240, 226, 204], band * 0.5 + 0.5);
-        col = mix(col, [158, 112, 80], sstep(0.6, 0.95, -band) * 0.6 * (1 - Math.abs(y)));
-        const sx = (x + 0.25) / 0.2, sy = (y - 0.32) / 0.11;
-        if (sx * sx + sy * sy < 1) col = mix(col, [190, 92, 62], 0.75 * (1 - (sx * sx + sy * sy)));
-      }
+      const col = colorAt(x, y, z);
       // aydınlatma: yumuşak gece-gündüz sınırı + kenar kararması
       const ndl = x * L[0] + y * L[1] + z * L[2];
       const light = 0.03 + 0.97 * sstep(-0.12, 0.35, ndl) * (0.55 + 0.45 * Math.max(0, ndl));

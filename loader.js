@@ -15,7 +15,7 @@
   root.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı · Mission Architect' : 'Mission Architect · Görev Mimarı';
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
-  ['firebase-config.js'].concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
+  ['firebase-config.js'].concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
     var s = document.createElement('script');
     s.src = src;
     s.async = false;

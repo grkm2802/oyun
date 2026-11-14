@@ -348,6 +348,8 @@
     // true: Three.js hazır, 3B çizilebilir. false: henüz değil (yüklemeyi başlatır) ya da hiç olmayacak.
     ready(onReady) { if (state === 'ok') return true; if (state !== 'fail') load((ok) => { if (ok && onReady) onReady(); }); return false; },
     failed() { return state === 'fail'; },
+    // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde
+    build(R) { const g = new THREE.Group(); buildParts(R).forEach((p) => g.add(p.obj)); return g; },
     show(host, R) {
       try { attach(host); setParts(R); kick(); return true; } catch (e) { console.error(e); state = 'fail'; return false; }
     },

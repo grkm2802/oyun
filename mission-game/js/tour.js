@@ -46,7 +46,7 @@
         { title: 'Sıra sende!', text: 'Önce eksikleri düzelt, sonra fırlat. Uçuşta ve raporda kısa ipuçları göreceksin. Bir görev başarısız olursa üzülme: rapor nedenini açıklar ve tasarımını geliştirip tekrar deneyebilirsin. İyi uçuşlar!' },
       ],
       flight: [
-        { target: '.viz-wrap', title: 'Uçuşunu izle', text: 'Uzay aracın fırlatıldı! Burada roketi, yolculuğu ve yörüngeyi görürsün. Yeşil kesikli çizgi Dünya\'ya veri gönderildiğini gösterir; gezegenin arkasına geçince sinyal kesilir.' },
+        { target: '.viz-wrap', title: 'Uçuşunu izle', text: 'Uzay aracın fırlatıldı! Burada roketi, yolculuğu ve yörüngeyi görürsün. Yörüngeye varınca görünüm 3B olur; sürükleyerek çevirebilirsin. Yeşil noktalar Dünya\'ya veri gönderildiğini gösterir; gezegenin arkasına geçince sinyal kesilir.' },
         { target: '#timeline', title: 'Görevin aşamaları', text: 'Fırlatma, yolculuk, varış ve bilim operasyonu. Turuncu çizgi şu an nerede olduğunu gösterir.' },
         { target: '.controls', title: 'Hızı sen belirle', text: 'Uçuşu duraklatabilir, 2×–8× hızlandırabilir ya da "İleri sar" ile bir sonraki olaya atlayabilirsin.' },
         { target: '#sim-stats', title: 'Aracın durumu', text: 'Kalan para, yakıt, elektrik, Dünya\'ya ulaşan veri ve radyasyon. Bir değer sarı ya da kırmızı olursa tasarımında zayıf bir nokta var demektir.' },
@@ -80,7 +80,7 @@
         { title: 'Your turn!', text: 'Fix what is missing, then launch. You will see short tips during the flight and on the report. If a mission fails, don\'t worry: the report explains why, and you can improve your design and try again. Have a great flight!' },
       ],
       flight: [
-        { target: '.viz-wrap', title: 'Watch your flight', text: 'Your spacecraft is on its way! Here you see the rocket, the journey and the orbit. The dashed green line means data is being sent to Earth; it stops when the planet blocks the signal.' },
+        { target: '.viz-wrap', title: 'Watch your flight', text: 'Your spacecraft is on its way! Here you see the rocket, the journey and the orbit. In orbit the view turns 3D; drag to turn it. Green dots mean data is being sent to Earth; it stops when the planet blocks the signal.' },
         { target: '#timeline', title: 'Mission phases', text: 'Launch, cruise, arrival and science operations. The orange line shows where you are now.' },
         { target: '.controls', title: 'You control the speed', text: 'Pause, speed up 2×–8×, or use "Skip ahead" to jump to the next event.' },
         { target: '#sim-stats', title: 'Spacecraft status', text: 'Money left, fuel, power, data reaching Earth and radiation. A yellow or red value points to a weak spot in your design.' },
