@@ -519,14 +519,11 @@
     scene.add(new THREE.HemisphereLight(0xbfd2ff, 0x1a1410, 0.5));
     const craft = new THREE.Group(); scene.add(craft);
     // arka plandaki gezegen ayrı katmanda, sabit kamerayla (araç dönerken yerinde durur)
-    const pscene = new THREE.Scene(), pcam = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
-    const psun = new THREE.DirectionalLight(0xfff4e6, 2.4); psun.position.set(-3, 1.6, 2.2); pscene.add(psun);
-    pscene.add(new THREE.AmbientLight(0x8899bb, 0.05));
     renderer.autoClear = false;
     // yıldızlar ayrı sahnede, en arkada (araçla birlikte döner)
     const sscene = new THREE.Scene(); sscene.add(makeStars(900, 60, 7));
     const nav = createNav(-0.55, 0.28);
-    const v = { pscene, pcam, planet: null, pBody: null, sscene, nav, host, renderer, cv, scene, camera, craft, parts: new Map(), dist: 0, distT: 6, pops: [], raf: 0, visible: true, hinted: false };
+    const v = { planet: null, pBody: null, sscene, nav, host, renderer, cv, scene, camera, craft, parts: new Map(), dist: 0, distT: 6, pops: [], raf: 0, visible: true, hinted: false };
     nav.onInteract = () => { if (!v.hinted) { v.hinted = true; const h = v.host.querySelector('.ws-3d-hint'); if (h) h.classList.add('gone'); } };
     // sürükle = döndür, iki parmak / sağ tık = kaydır ve yakınlaştır (dikey tek parmak sayfayı kaydırır)
     bindGestures(cv, nav, () => v.host.parentElement, () => kick());
@@ -557,16 +554,31 @@
     const img = V.host.parentElement && V.host.parentElement.querySelector('.ws-planet');
     if (img) img.style.visibility = V.planet ? 'hidden' : '';
   }
+  // Gezegen sahnenin içinde gerçek bir küre: ilk görünüşte (başlangıç kamerasından) aracın arkasında, sağ altta.
+  // Kamera dönünce ve serbest kamerayla gezerken yeri değişir; yanına uçulabilir.
+  function placePlanet() {
+    if (!V.planet || !V.center || !V.radius) return;
+    const c = V.center, n = V.nav.home, dist = V.distT || 6;
+    const camPos = new THREE.Vector3(c.x + Math.sin(n.yaw) * Math.cos(n.pitch) * dist, c.y + Math.sin(n.pitch) * dist, c.z + Math.cos(n.yaw) * Math.cos(n.pitch) * dist);
+    const f = c.clone().sub(camPos).normalize();
+    const right = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
+    const up = new THREE.Vector3().crossVectors(right, f).normalize();
+    const R = V.radius * 3.2;
+    V.planet.scale.setScalar(R);
+    V.planet.position.copy(c).addScaledVector(f, R * 1.6).addScaledVector(right, R * 0.9).addScaledVector(up, -R * 0.75);
+    V.planetPlaced = true;
+  }
   function setPlanet(body) {
-    if (V.pBody === body) return;
-    V.pBody = body;
-    if (V.planet) { V.pscene.remove(V.planet); V.planet.geometry.dispose(); V.planet = null; }
+    if (V.pBody === body) { if (V.planet && !V.planetPlaced) placePlanet(); return; }
+    V.pBody = body; V.planetPlaced = false;
+    if (V.planet) { V.scene.remove(V.planet); V.planet.geometry.dispose(); V.planet = null; }
     hideImg();
     const make = (tex) => {
       if (V.pBody !== body || V.planet) return;
       V.planet = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0 }));
       V.planet.rotation.set(0.25, -1.2, 0.1);
-      V.pscene.add(V.planet);
+      V.scene.add(V.planet);
+      placePlanet();
       hideImg(); kick();
     };
     const t = nasaTex(body, make);
@@ -638,19 +650,7 @@
     V.sscene.position.copy(V.camera.position); // yıldızlar sonsuz uzakta gibi
     V.renderer.render(V.sscene, V.camera);
     V.renderer.clearDepth();
-    if (V.planet) {
-      // 2B resmin yeri: sağ alt köşe, kısmen dışarıda (style.css .ws-planet ile aynı ölçüler)
-      const w = V.w, h = V.h, full = isFull(V.host.parentElement);
-      // tam ekranda gezegen daha büyük ve daha görünür; normalde 2B resmin yeri
-      const d = full ? Math.min(w, h) * 0.75 : Math.min(0.46 * w, 360);
-      V.pcam.left = 0; V.pcam.right = w; V.pcam.top = 0; V.pcam.bottom = -h; V.pcam.updateProjectionMatrix();
-      V.planet.scale.setScalar(d / 2);
-      if (full) V.planet.position.set(w - d * 0.2, -(h - d * 0.18), -d);
-      else V.planet.position.set(w * 1.04 - d / 2, -(h * 1.34 - d / 2), -d);
-      if (!REDUCED_MOTION) V.planet.rotation.y += 0.0008;
-      V.renderer.render(V.pscene, V.pcam);
-      V.renderer.clearDepth();
-    }
+    if (V.planet && !REDUCED_MOTION) V.planet.rotation.y += 0.0008;
     V.renderer.render(V.scene, V.camera);
     if ((busy || !REDUCED_MOTION) && V.visible && !document.hidden) kick();
   }
