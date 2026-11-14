@@ -278,14 +278,13 @@
   function pMission(R) {
     const sc = scen(), d = S.design;
     const objs = sc.objectives.map((o) => {
-      const top = Object.entries(o.needs).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([i]) => INSTRUMENTS[i].name);
-      return `<li><span class="ws-star">${o.primary ? '⭐' : '☆'}</span><div><b>${o.name}</b><div class="muted ws-small">${T.helps}: ${top.join(', ')}</div></div></li>`;
+      // sade: sadece hedefin adı (hangi aletin yaradığı alet kartlarında yazıyor)
+      return `<li><span class="ws-star">${o.primary ? '⭐' : '☆'}</span><div><b>${o.name}</b></div></li>`;
     }).join('');
     const orbits = ORBIT_LIST[sc.id].map((k) => {
       const o = ORBITS[k], a = whatIf({ orbit: k });
       const inner = `<span class="name">${o.name}</span><span class="desc">${o.desc}</span>
-        <span class="stats"><span class="stat">${T.oStats.res} ×${o.res}</span><span class="stat">${T.oStats.shadow} ${PC(o.eclipse * 100)}</span><span class="stat">${T.oStats.fuel} ${o.insertDv} m/s</span>
-        <span class="stat ${a.sciPotential >= 0.85 ? 'good' : a.sciPotential < 0.6 ? 'bad' : ''}">${T.oStats.sci} ${PC(a.sciPotential * 100)}</span></span>`;
+        ${R.insts.length ? `<span class="stats"><span class="stat ${a.sciPotential >= 0.85 ? 'good' : a.sciPotential < 0.6 ? 'bad' : ''}">${T.oStats.sci} ${PC(a.sciPotential * 100)}</span></span>` : ''}`;
       return card(d.orbit === k, 'set', 'orbit', k, inner);
     }).join('');
     const dur = durations(sc).map((m, i) => `<button data-act="ws-months" data-v="${m}" class="${+d.months === m ? 'sel' : ''}" aria-pressed="${+d.months === m}">${T.durNames[i]} · ${m} ${T.months}</button>`).join('');
@@ -301,9 +300,10 @@
     const sc = scen(), d = S.design;
     const cards = relevantInstruments(sc).map((id) => {
       const I = INSTRUMENTS[id], on = (d.instruments[id] || 0) > 0;
-      const uses = sc.objectives.filter((o) => (o.needs[id] || 0) >= 0.25).map((o) => `<span class="chip ${o.primary ? 'primary' : ''}">${o.primary ? '⭐' : '☆'} ${o.name}</span>`).join('');
+      // sade: sadece en çok yaradığı (en fazla 2) hedef
+      const uses = sc.objectives.filter((o) => (o.needs[id] || 0) >= 0.25).sort((a, b) => (b.needs[id] || 0) - (a.needs[id] || 0)).slice(0, 2).map((o) => `<span class="chip ${o.primary ? 'primary' : ''}">${o.primary ? '⭐' : '☆'} ${o.name}</span>`).join('');
       const inner = `<span class="ws-ic" data-icons>${I.icon}</span><span class="name">${I.name}</span><span class="desc">${I.desc}</span>
-        <span class="stats"><span class="stat">${I.mass} kg</span><span class="stat">${I.power} W</span><span class="stat">$${I.cost}M</span><span class="stat">${fmtData(I.data)}/${LANG === 'tr' ? 'gün' : 'day'}</span></span>
+        <span class="stats"><span class="stat">$${I.cost}M</span><span class="stat">${I.mass} kg</span><span class="stat">${I.power} W</span></span>
         <span class="use">${uses}</span><span class="ws-tog">${on ? '✓ ' + T.added : '+ ' + T.add}</span>`;
       return card(on, 'inst', id, on ? 0 : 1, inner);
     }).join('');
@@ -315,7 +315,7 @@
     const sc = scen(), d = S.design;
     const group = (g, preview) => `<div class="group"><h3>${T.groups[g]}</h3><div class="ws-cards">${OPTS[g][sc.id].map((k) => {
       const o = PARTS[g].options[k];
-      const inner = `<span class="name">${o.name}</span><span class="desc">${o.desc}</span><span class="stats">${o.mass ? `<span class="stat">${o.mass} kg</span>` : ''}${o.cost ? `<span class="stat">$${o.cost}M</span>` : ''}${preview(k)}</span>`;
+      const inner = `<span class="name">${o.name}</span><span class="desc">${o.desc}</span><span class="stats">${o.cost ? `<span class="stat">$${o.cost}M</span>` : ''}${preview(k)}</span>`;
       return card(d[g] === k, 'set', g, k, inner);
     }).join('')}</div></div>`;
     const prevPower = (k) => { const a = whatIf({ power: k }); return `<span class="stat ${a.power.genAvg >= a.power.load ? 'good' : 'bad'}">→ ${W_(a.power.genAvg)}</span>`; };
@@ -323,7 +323,7 @@
     const prevAnt = (k) => { const a = whatIf({ antenna: k }); return `<span class="stat ${a.data.ratio >= 1 ? 'good' : 'bad'}">→ ${fmtData(a.data.downDay)}/${LANG === 'tr' ? 'gün' : 'day'}</span>`; };
     const autoRow = ['computer', 'shielding', 'redundancy', 'battery', 'ground'].map((g) => `<span class="chip">${T.autoNames[g]}: ${PARTS[g].options[d[g]].name}</span>`).join('');
     return `<div data-tour="craft" class="ws-col">${group('power', prevPower)}${group('propulsion', prevProp)}${group('antenna', prevAnt)}</div>
-      <div class="panel pad ws-auto"><h3>${T.auto}</h3><p class="muted ws-small">${T.autoNote}</p><div class="role-chips">${autoRow}</div></div>`;
+      <details class="panel pad ws-auto"><summary><b>${T.auto}</b></summary><p class="muted ws-small">${T.autoNote}</p><div class="role-chips">${autoRow}</div></details>`;
   }
 
   function pLaunch(R) {
@@ -331,8 +331,8 @@
     const rockets = launchersFor(sc, d).map((k) => {
       const L = LAUNCHERS[k], cap = L.cap[lc] || 0, fits = cap >= R.mass.wet;
       const inner = `<span class="name">${L.name}</span><span class="desc">${L.desc}</span>
-        <span class="stats"><span class="stat">$${L.cost}M</span><span class="stat">${PC((L.rel - R.diff.relPenalty) * 100)} ${T.reliable}</span>
-        <span class="stat ${fits ? 'good' : 'bad'}">${kg(cap)} ${T.lifts} · ${fits ? T.fits : T.tooHeavy}</span></span>`;
+        <span class="stats"><span class="stat">$${L.cost}M</span>
+        <span class="stat ${fits ? 'good' : 'bad'}">${fits ? T.fits : T.tooHeavy}</span></span>`;
       return card(d.launcher === k, 'set', 'launcher', k, inner);
     }).join('');
     const ps = players(), errs = R.errors.length;

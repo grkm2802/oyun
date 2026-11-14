@@ -206,7 +206,7 @@ function computeDesign(sc, d, diffKey) {
   if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `İtki yok: yörünge ~${Math.round(orbit.natLife * 12)} ay sonra çöküyor.`, 'Bir motor ekle.');
   if (late > 0) W('MM', sc.window ? `Geliştirme ${late} ay gecikti → fırlatma penceresi kaçıyor, ${delay} ay bekleme.` : `Geliştirme takvimin ${late} ay gerisinde.`, `Her gecikme ayı ${fmtM(marching)} tutar.`);
   for (const o of objectives) {
-    if (o.primary && o.cap < 0.5) W('SL', `"${o.name}" ana hedefi için zayıf yeterlilik (%${Math.round(o.cap * 100)}).`, 'İşe yarayan aletler: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
+    if (o.primary && o.cap < 0.5) W('SL', `"${o.name}" için alet yetersiz (%${Math.round(o.cap * 100)}).`, 'Şunları ekle: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
     if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" ${o.months} ay ister; görev planı ${months} ay.`, 'Görev süresini uzat.');
   }
   if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Yedek bütçe sadece %${Math.round(reservePct * 100)}.`, 'Yedek para, uçuştaki arızaları karşılar.');

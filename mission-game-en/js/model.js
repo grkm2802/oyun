@@ -206,7 +206,7 @@ function computeDesign(sc, d, diffKey) {
   if (prop.isp === 0 && orbit.natLife * 12 < months) W('MM', `No propulsion: orbit decays after ~${Math.round(orbit.natLife * 12)} months.`, 'Add an engine.');
   if (late > 0) W('MM', sc.window ? `Development is ${late} months late → miss the launch window, wait ${delay} months.` : `Development is ${late} months behind schedule.`, `Each month of delay costs ${fmtM(marching)}.`);
   for (const o of objectives) {
-    if (o.primary && o.cap < 0.5) W('SL', `Weak capability for primary objective "${o.name}" (${Math.round(o.cap * 100)}%).`, 'Useful instruments: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
+    if (o.primary && o.cap < 0.5) W('SL', `Not enough instruments for "${o.name}" (${Math.round(o.cap * 100)}%).`, 'Add: ' + Object.keys(o.needs).map((k) => INSTRUMENTS[k].name).join(', ') + '.');
     if (o.primary && o.months > months && !orbit.maxOps) W('MM', `"${o.name}" needs ${o.months} months; mission plan is ${months}.`, 'Make the mission longer.');
   }
   if (budget !== Infinity && total <= budget && reservePct < 0.1) W('MM', `Reserve only ${Math.round(reservePct * 100)}% of budget.`, 'Spare money pays for problems in flight.');
