@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
 
-FILES = ["index.html", "loader.js", "firebase-config.js", "sw.js", "404.html", "site.webmanifest", "robots.txt", "sitemap.xml", "_headers"]
+FILES = ["index.html", "loader.js", "intro.js", "firebase-config.js", "sw.js", "404.html", "site.webmanifest", "robots.txt", "sitemap.xml", "_headers"]
 DIRS = {
     "assets": None,
     "mission-game": ["css", "js", "vendor", "textures", "models", "media"],

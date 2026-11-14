@@ -209,7 +209,11 @@
   /* Ekran değişince: ilk ziyarette ilgili turu öner */
   window.onScreen = (screen) => {
     if (tour) { const home = { main: ['title', 'design'], flight: ['sim'], report: ['report'] }[tour] || []; if (!home.includes(screen)) end(); else schedule(); return; }
-    if (screen === 'title' && !seen('main')) setTimeout(() => { if (!tour && S.screen === 'title') start('main'); }, 400);
+    if (screen === 'title' && !seen('main')) {
+      // açılış ekranı (intro.js) bitene kadar bekle
+      const go = () => setTimeout(() => { if (!tour && S.screen === 'title') start('main'); }, 400);
+      if (window.MA_INTRO_ACTIVE) document.addEventListener('ma:intro-done', go, { once: true }); else go();
+    }
     if (screen === 'sim' && !seen('flight')) {
       const wait = () => {
         if (S.screen !== 'sim' || tour) return;

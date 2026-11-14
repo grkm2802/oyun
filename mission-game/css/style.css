@@ -556,3 +556,21 @@ body:has(.v3-full) { overflow: hidden; }
 
 /* görev durumu ve saat 3B görünümün üstünde kalsın */
 .viz-wrap .viz-hud { z-index: 3; }
+
+/* Açılış ekranı (intro.js) */
+html.intro-pending body { background: #000; }
+html.intro-pending body > *:not(#intro) { visibility: hidden; }
+#intro { position: fixed; inset: 0; z-index: 10000; background: #000; display: grid; place-items: center; transition: opacity .6s ease; }
+#intro.reveal, #intro.out { opacity: 0; }
+#intro .intro-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; transition: opacity .5s ease; }
+#intro.ended .intro-video { opacity: 0; }
+#intro .intro-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#intro .intro-top { position: absolute; top: max(14px, env(safe-area-inset-top, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); display: flex; gap: 8px; z-index: 2; }
+#intro .intro-btn { min-height: 44px; padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .28); background: rgba(10, 14, 20, .6); color: #f2f4f7; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+#intro .intro-btn:hover { background: rgba(30, 40, 52, .85); }
+#intro .intro-start { position: relative; z-index: 2; min-height: 56px; min-width: 180px; padding: 12px 36px; border-radius: 14px; border: 0; background: var(--cta, #c2410c); color: var(--cta-ink, #fff); font: inherit; font-size: 22px; font-weight: 700; letter-spacing: .02em; cursor: pointer; animation: intro-in .6s ease both; }
+#intro .intro-start:hover { filter: brightness(1.08); }
+#intro button:focus-visible { outline: 3px solid #8fb8ff; outline-offset: 3px; }
+#intro [hidden] { display: none; }
+@keyframes intro-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { #intro, #intro .intro-video { transition: none; } #intro .intro-start { animation: none; } }

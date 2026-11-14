@@ -14,8 +14,12 @@
   window.MA_SITE = true; // çevrimiçi mod sadece gerçek sitede (claude.ai önizlemesinde değil)
   root.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı · Mission Architect' : 'Mission Architect · Görev Mimarı';
+  // açılış ekranı (intro.js): aynı sekmede bir kez; yüklenene kadar site görünmesin
+  var introSeen = false;
+  try { introSeen = sessionStorage.getItem('ma_intro') === '1'; } catch (e) { introSeen = false; }
+  if (!introSeen) root.classList.add('intro-pending');
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
-  ['firebase-config.js'].concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
+  (introSeen ? [] : ['intro.js']).concat(['firebase-config.js']).concat(['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].map(function (f) { return base + 'js/' + f + '.js'; })).forEach(function (src) {
     var s = document.createElement('script');
     s.src = src;
     s.async = false;

@@ -5,7 +5,7 @@
    CACHE adı yayın betiği (scripts/build_site.py) tarafından her yayında değiştirilir. */
 const CACHE = 'ma-%BUILD_ID%';
 const CORE = [
-  './', 'index.html', 'loader.js', 'firebase-config.js', 'site.webmanifest',
+  './', 'index.html', 'loader.js', 'intro.js', 'firebase-config.js', 'site.webmanifest',
   'mission-game/css/style.css', 'mission-game/vendor/three.min.js',
   'assets/favicon-32.png', 'assets/icon-192.png', 'assets/icon-512.png', 'assets/apple-touch-icon.png',
   ...['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].flatMap((f) => [`mission-game/js/${f}.js`, `mission-game-en/js/${f}.js`]),
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(caches.open(CACHE).then(async (cache) => {
       try {
         const res = await fetch(req, { cache: 'no-cache' });
-        if (res && res.ok) cache.put(req, res.clone());
+        if (res && res.status === 200) cache.put(req, res.clone()); // 206 (video parçası) önbelleğe konamaz
         return res;
       } catch {
         return (await cache.match(req, { ignoreSearch: true }))

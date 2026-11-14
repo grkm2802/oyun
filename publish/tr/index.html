@@ -17,6 +17,12 @@
   window.MA_LOADER = true;
   document.documentElement.lang = lang;
   document.title = lang === 'tr' ? 'Görev Mimarı' : 'Mission Architect';
+  var introSeen = false;
+  try { introSeen = sessionStorage.getItem('ma_intro') === '1'; } catch (e) { introSeen = false; }
+  if (!introSeen) {
+    document.documentElement.classList.add('intro-pending');
+    var si = document.createElement('script'); si.src = 'intro.js'; si.async = false; document.body.appendChild(si);
+  }
   var base = lang === 'tr' ? 'mission-game/' : 'mission-game-en/';
   ['icons', 'data', 'model', 'sim', 'viz', 'ui', 'workshop', 'craft3d', 'flight3d', 'tour', 'online'].forEach(function (f) {
     var s = document.createElement('script');
