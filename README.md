@@ -79,6 +79,13 @@ Site simgelerini yeniden üretmek için: `python scripts/make_assets.py` (Pillow
 ## Lisanslar
 - Simgeler: [Lucide](https://lucide.dev) v0.460.0, ISC lisansı. Gezegen görselleri, uzay aracı çizimi ve site simgeleri bu proje için kodla üretildi.
 - 3B çizim: [Three.js](https://threejs.org) r149, MIT lisansı (`mission-game/vendor/`).
+- Gezegen dokuları (`mission-game/textures/`, küçültülmüş kopyalar), NASA kaynaklarından:
+  - Dünya: NASA/Goddard Space Flight Center Scientific Visualization Studio; Blue Marble Next Generation verisi Reto Stöckli (NASA/GSFC) ve NASA Earth Observatory'nin katkısıyla ([SVS 3615](https://svs.gsfc.nasa.gov/3615)).
+  - Ay: NASA's Scientific Visualization Studio, CGI Moon Kit; LRO LROC WAC renk mozaiği ([SVS 4720](https://svs.gsfc.nasa.gov/4720)).
+  - Mars: NASA/Jet Propulsion Laboratory & Caltech, USGS'de işlenmiş Viking görüntüleri ([NASA 3D Resources](https://science.nasa.gov/3d-resources/mars/)).
+  - Jüpiter: JPL & Caltech, Voyager görüntüleri ([NASA 3D Resources](https://science.nasa.gov/3d-resources/jupiter/)).
+  - Europa: USGS, JPL & Caltech, Voyager mozaiği ([NASA 3D Resources](https://science.nasa.gov/3d-resources/jupiter-europa/)).
+  - NASA görselleri [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) kapsamında kullanıldı; bu proje NASA tarafından onaylanmış ya da desteklenmiş değildir.
 - Yazı tipi: Atkinson Hyperlegible Next (Google Fonts, SIL Open Font License).
 - Projenin kendi kodu için henüz bir lisans seçilmedi (açık kaynak yapmak istersen örneğin MIT eklenebilir).
 

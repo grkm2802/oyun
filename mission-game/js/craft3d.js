@@ -13,6 +13,29 @@
   const SELF = document.currentScript && document.currentScript.src;
   const THREE_URL = SELF ? new URL('../../mission-game/vendor/three.min.js', SELF).href : 'mission-game/vendor/three.min.js';
 
+  // NASA gezegen dokuları (eşdikdörtgen): mission-game/textures/. Kaynaklar README'de.
+  const TEX_BASE = SELF ? new URL('../../mission-game/textures/', SELF).href : 'mission-game/textures/';
+  const NASA_FILE = { Earth: 'earth.jpg', Moon: 'moon.jpg', Mars: 'mars.jpg', Jupiter: 'jupiter.jpg', Europa: 'europa.jpg' };
+  const NT = {};
+  // Doku hazırsa döndürür; değilse yüklemeyi başlatır, null döner ve hazır olunca onLoad(tex) çağırır.
+  // file:// ile açılınca WebGL yerel resmi kullanamaz → hiç denemez (onFail hemen).
+  function nasaTex(body, onLoad, onFail) {
+    if (!NASA_FILE[body] || location.protocol === 'file:') { if (onFail) onFail(); return null; }
+    let e = NT[body];
+    if (e && e.tex) return e.tex;
+    if (e && e.failed) { if (onFail) onFail(); return null; }
+    if (!e) {
+      e = NT[body] = { tex: null, failed: false, ok: [], bad: [] };
+      new THREE.TextureLoader().load(TEX_BASE + NASA_FILE[body], (t) => {
+        t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; e.tex = t;
+        e.ok.forEach((f) => f(t)); e.ok = []; e.bad = [];
+      }, undefined, () => { e.failed = true; e.bad.forEach((f) => f()); e.ok = []; e.bad = []; });
+    }
+    if (onLoad) e.ok.push(onLoad);
+    if (onFail) e.bad.push(onFail);
+    return null;
+  }
+
   let state = 'idle'; // idle | loading | ok | fail
   const waiters = [];
   function webglOK() {
@@ -243,7 +266,12 @@
     const fill = new THREE.DirectionalLight(0x9fb8d9, 0.55); fill.position.set(4, -2, -3); scene.add(fill);
     scene.add(new THREE.HemisphereLight(0xbfd2ff, 0x1a1410, 0.5));
     const craft = new THREE.Group(); scene.add(craft);
-    const v = { host, renderer, cv, scene, camera, craft, parts: new Map(), yaw: -0.55, pitch: 0.28, dist: 0, distT: 6, drag: null, idleAt: 0, pops: [], raf: 0, visible: true, hinted: false };
+    // arka plandaki gezegen ayrı katmanda, sabit kamerayla (araç dönerken yerinde durur)
+    const pscene = new THREE.Scene(), pcam = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
+    const psun = new THREE.DirectionalLight(0xfff4e6, 2.4); psun.position.set(-3, 1.6, 2.2); pscene.add(psun);
+    pscene.add(new THREE.AmbientLight(0x8899bb, 0.05));
+    renderer.autoClear = false;
+    const v = { pscene, pcam, planet: null, pBody: null, host, renderer, cv, scene, camera, craft, parts: new Map(), yaw: -0.55, pitch: 0.28, dist: 0, distT: 6, drag: null, idleAt: 0, pops: [], raf: 0, visible: true, hinted: false };
     // sürükleyerek döndür (dikey kaydırma sayfaya kalır: touch-action pan-y)
     cv.addEventListener('pointerdown', (e) => { v.drag = { x: e.clientX, y: e.clientY, yaw: v.yaw, pitch: v.pitch }; try { cv.setPointerCapture(e.pointerId); } catch (_) {} cv.classList.add('grab'); });
     cv.addEventListener('pointermove', (e) => {
@@ -274,6 +302,27 @@
     if (V.io) { V.io.disconnect(); V.io.observe(host); }
     V.parts.clear(); clearCraft();
     V.first = true;
+    hideImg();
+  }
+  // NASA dokulu 3B gezegen hazırsa atölyedeki 2B gezegen resmini gizle
+  function hideImg() {
+    const img = V.host.parentElement && V.host.parentElement.querySelector('.ws-planet');
+    if (img) img.style.visibility = V.planet ? 'hidden' : '';
+  }
+  function setPlanet(body) {
+    if (V.pBody === body) return;
+    V.pBody = body;
+    if (V.planet) { V.pscene.remove(V.planet); V.planet.geometry.dispose(); V.planet = null; }
+    hideImg();
+    const make = (tex) => {
+      if (V.pBody !== body || V.planet) return;
+      V.planet = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0 }));
+      V.planet.rotation.set(0.25, -1.2, 0.1);
+      V.pscene.add(V.planet);
+      hideImg(); kick();
+    };
+    const t = nasaTex(body, make);
+    if (t) make(t);
   }
   function clearCraft() {
     while (V.craft.children.length) { const o = V.craft.children[0]; V.craft.remove(o); disposeObj(o); }
@@ -337,6 +386,16 @@
     V.camera.position.set(c.x + Math.sin(V.yaw) * Math.cos(V.pitch) * V.dist, c.y + Math.sin(V.pitch) * V.dist, c.z + Math.cos(V.yaw) * Math.cos(V.pitch) * V.dist);
     V.camera.lookAt(c);
     V.craft.position.y = REDUCED_MOTION ? 0 : Math.sin(now / 900) * 0.04;
+    V.renderer.clear();
+    if (V.planet) {
+      // 2B resmin yeri: sağ alt köşe, kısmen dışarıda (style.css .ws-planet ile aynı ölçüler)
+      const w = V.w, h = V.h, d = Math.min(0.46 * w, 360);
+      V.pcam.left = 0; V.pcam.right = w; V.pcam.top = 0; V.pcam.bottom = -h; V.pcam.updateProjectionMatrix();
+      V.planet.scale.setScalar(d / 2);
+      V.planet.position.set(w * 1.04 - d / 2, -(h * 1.34 - d / 2), -d);
+      if (!REDUCED_MOTION) V.planet.rotation.y += 0.0008;
+      V.renderer.render(V.pscene, V.pcam);
+    }
     V.renderer.render(V.scene, V.camera);
     if ((busy || !REDUCED_MOTION) && V.visible && !document.hidden) kick();
   }
@@ -348,10 +407,11 @@
     // true: Three.js hazır, 3B çizilebilir. false: henüz değil (yüklemeyi başlatır) ya da hiç olmayacak.
     ready(onReady) { if (state === 'ok') return true; if (state !== 'fail') load((ok) => { if (ok && onReady) onReady(); }); return false; },
     failed() { return state === 'fail'; },
+    nasaTex,
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde
     build(R) { const g = new THREE.Group(); buildParts(R).forEach((p) => g.add(p.obj)); return g; },
     show(host, R) {
-      try { attach(host); setParts(R); kick(); return true; } catch (e) { console.error(e); state = 'fail'; return false; }
+      try { attach(host); setParts(R); setPlanet(R.sc.body); kick(); return true; } catch (e) { console.error(e); state = 'fail'; return false; }
     },
   };
 })();

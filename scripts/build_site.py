@@ -24,7 +24,7 @@ DIST = os.path.join(ROOT, "dist")
 FILES = ["index.html", "loader.js", "firebase-config.js", "sw.js", "404.html", "site.webmanifest", "robots.txt", "sitemap.xml", "_headers"]
 DIRS = {
     "assets": None,
-    "mission-game": ["css", "js", "vendor"],
+    "mission-game": ["css", "js", "vendor", "textures"],
     "mission-game-en": ["js"],
 }
 TEXT_EXT = {".html", ".js", ".css", ".xml", ".txt", ".webmanifest", ""}

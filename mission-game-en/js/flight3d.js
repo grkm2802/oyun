@@ -35,9 +35,13 @@
     TEXS[body] = t;
     return t;
   }
+  // Önce NASA dokusu (craft3d.js nasaTex); yüklenene kadar koyu yer tutucu, yüklenemezse kodla üretilen doku.
   function planet(body, r) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 64, 40), new THREE.MeshStandardMaterial({ map: planetTex(body), roughness: 0.95, metalness: 0 }));
-    return m;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.95, metalness: 0 });
+    const use = (t) => { mat.map = t; mat.color.set(0xffffff); mat.needsUpdate = true; };
+    const t = Craft3D.nasaTex(body, use, () => use(planetTex(body)));
+    if (t) use(t);
+    return new THREE.Mesh(new THREE.SphereGeometry(r, 64, 40), mat);
   }
 
   /* ---------- sahne ---------- */
