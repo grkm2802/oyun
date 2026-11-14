@@ -23,14 +23,15 @@
   var box = document.createElement('div');
   box.id = 'intro'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', T.label);
   box.innerHTML =
-    '<video class="intro-video" playsinline muted preload="auto" src="mission-game/media/acilis-ekrani.mp4"></video>' +
+    '<video class="intro-video" playsinline preload="auto" src="mission-game/media/acilis-ekrani.mp4"></video>' +
     '<canvas class="intro-fx" aria-hidden="true"></canvas>' +
     '<div class="intro-top"><button type="button" class="intro-btn" data-i="sound">' + T.sound + '</button>' +
     '<button type="button" class="intro-btn" data-i="skip">' + T.skip + '</button></div>' +
     '<button type="button" class="intro-start" data-i="start" hidden>' + T.start + '</button>';
   (document.body || root).appendChild(box);
   root.classList.remove('intro-pending');
-  var video = box.querySelector('video'), startBtn = box.querySelector('.intro-start'), top = box.querySelector('.intro-top');
+  var video = box.querySelector('video'), startBtn = box.querySelector('.intro-start'), top = box.querySelector('.intro-top'), soundBtn = box.querySelector('[data-i="sound"]');
+  video.muted = false;
   var fx = box.querySelector('canvas'), g = fx.getContext('2d');
   var stage = 'video';
 
@@ -48,7 +49,12 @@
   if (reduced) showStart();
   else {
     var p = video.play();
-    if (p && p.catch) p.catch(showStart); // otomatik oynatma engellendiyse doğrudan Başla
+    if (p && p.then) p.then(function () { soundBtn.textContent = T.mute; }).catch(function () {
+      // Tarayıcı sesli otomatik oynatmayı engellerse video sessiz devam eder; ses düğmesi görünür kalır.
+      video.muted = true; soundBtn.textContent = T.sound;
+      var mutedPlay = video.play();
+      if (mutedPlay && mutedPlay.catch) mutedPlay.catch(showStart);
+    });
     // video hiç başlamazsa (ağ) bir süre sonra Başla
     setTimeout(function () { if (stage === 'video' && video.currentTime === 0) showStart(); }, 6000);
   }
@@ -56,7 +62,7 @@
   box.addEventListener('click', function (e) {
     var b = e.target.closest('[data-i]'); if (!b) return;
     var k = b.getAttribute('data-i');
-    if (k === 'sound') { video.muted = !video.muted; b.textContent = video.muted ? T.sound : T.mute; if (!video.muted && video.paused) video.play().catch(function () {}); }
+    if (k === 'sound') { video.muted = !video.muted; b.textContent = video.muted ? T.sound : T.mute; if (!video.muted && video.paused) video.play().catch(function () { video.muted = true; b.textContent = T.sound; }); }
     else if (k === 'skip') showStart();
     else if (k === 'start') launch();
   });
