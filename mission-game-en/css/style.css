@@ -530,3 +530,23 @@ body:has(.v3-full) { overflow: hidden; }
   .viz-tools { right: 8px; top: 44px; left: auto; }
   .ws-3d-hint { display: none; }
 }
+
+/* Serbest kamera: yardım satırı ve yön düğmeleri (craft3d.js toolbar) */
+.v3-help { position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); top: 12px; max-width: calc(100% - 24px); padding: 6px 12px; border-radius: 8px; background: rgba(11, 17, 24, .78); color: #eef2f6; font-size: 13px; text-align: center; pointer-events: none; }
+.ws-craft .v3-help { top: 64px; }
+.viz-wrap .v3-help { top: 96px; }
+.v3-pad { position: absolute; z-index: 4; left: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, auto); gap: 6px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.v3-pad .v3-btn { min-width: 44px; min-height: 40px; font-size: 15px; }
+.v3-help[hidden], .v3-pad[hidden], .v3-tools [hidden] { display: none; }
+.ws-craft:has(.v3-pad:not([hidden])) .ws-3d-hint, .viz-wrap:has(.v3-pad:not([hidden])) .viz-3d-labels { display: none; }
+@media (max-width: 720px) {
+  .v3-pad { left: 8px; bottom: 60px; gap: 4px; }
+  .v3-pad .v3-btn { min-width: 44px; min-height: 44px; padding: 4px 6px; font-size: 13px; }
+  .ws-craft .v3-help { top: 56px; font-size: 12px; }
+}
+
+@media (max-width: 720px) {
+  /* küçük görünümde yardım yazısı sığmaz; tam ekranda gösterilir */
+  .ws-stage:not(.v3-full):not(:fullscreen) .v3-help, .viz-wrap:not(.v3-full):not(:fullscreen) .v3-help { display: none; }
+  .viz-wrap .v3-help { top: 96px; }
+}

@@ -69,6 +69,7 @@
     const world = new THREE.Group(); scene.add(world);
     const N = Craft3D.nav;
     const nav = N.createNav(0.35, 0.2, { pMin: -1.2, pMax: 1.2 });
+    nav.minR = 1.12; // serbest kamera gezegenin (yarıçap 1) içine girmesin
     const v = { renderer, cv, scene, camera, world, key: null, nav, wrap: null, t: 0 };
     // çizim döngüsü ui.js'te (her karede drawFlight), ayrıca tetiklemeye gerek yok
     N.bindGestures(cv, nav, () => v.wrap, () => {});
@@ -117,7 +118,6 @@
       S.b = b; S.fc = fc;
       S.extent = Math.max(1.65, S.a * (1 + S.e) + 0.2, S.jup ? S.moonR + 0.4 : 0);
     }
-    S.axes = Craft3D.nav.makeAxes(S.extent * 0.95); W.add(S.axes);
     // uzay aracı: atölyedeki 3B model, görünür olsun diye büyütülmüş
     S.craft = new THREE.Group();
     const model = Craft3D.build(R);
@@ -170,7 +170,7 @@
       wrap.appendChild(V.cv); V.key = null; V.wrap = wrap;
       V.bar = Craft3D.nav.toolbar(wrap, () => V.wrap, V.nav, () => {}, 'viz-tools');
     }
-    V.cv.hidden = false; if (V.bar) V.bar.hidden = false;
+    V.cv.hidden = false; if (V.bar && V.bar.hidden) { V.bar.hidden = false; V.bar.sync(); }
     // karar penceresi tam ekranın dışında kalır: karar gerekince tam ekrandan çık
     if (sim.pending && Craft3D.nav.isFull(wrap)) Craft3D.nav.exitFull(wrap);
     const key = sim; // her yeni uçuşta sahne yeniden kurulur
@@ -195,7 +195,6 @@
     const fov = (V.camera.fov * Math.PI) / 180;
     const fit = S.extent / Math.sin(Math.atan(Math.tan(fov / 2) * Math.min(1, V.camera.aspect))) * 1.05;
     Craft3D.nav.placeCamera(V.camera, new THREE.Vector3(0, 0, 0), V.nav, fit);
-    S.axes.visible = V.nav.axes;
     // veri akışı: aracın dünya konumundan Dünya yönüne; gezegen arada ise yok
     const wp = S.craft.getWorldPosition(new THREE.Vector3());
     const dir = S.earthDir;
@@ -217,7 +216,7 @@
 
   function hide3D(canvas) {
     if (!V) return;
-    V.cv.hidden = true; if (V.bar) V.bar.hidden = true;
+    V.cv.hidden = true; if (V.bar) { V.bar.hidden = true; V.bar.parts.forEach((x) => { x.hidden = true; }); }
     const wrap = canvas.parentElement, lb = wrap && wrap.querySelector('.viz-3d-labels');
     if (lb) lb.hidden = true;
     delete canvas.dataset.cleared;

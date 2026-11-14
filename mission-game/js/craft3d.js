@@ -248,18 +248,42 @@
     return parts;
   }
 
-  /* ---------------- ortak gezinme: tam ekran, yakınlaştırma, kaydırma, eksenler ----------------
+  /* ---------------- ortak gezinme: tam ekran, yakınlaştırma, serbest kamera ----------------
      Atölye (bu dosya) ve uçuş ekranı (flight3d.js) aynı yardımcıları kullanır.
-     Fare: sol tık sürükle = döndür, sağ tık ya da Shift + sürükle = kaydır, tekerlek = yakınlaştır (tam ekranda).
-     Dokunmatik: bir parmak = döndür, iki parmak = yakınlaştır + kaydır. */
+     Normal (yörünge) kip: sol sürükle = döndür, sağ tık ya da Shift + sürükle = kaydır, tekerlek = yakınlaştır (tam ekranda),
+       iki parmak = yakınlaştır + kaydır.
+     Serbest kamera: kamera sahnede serbestçe uçar. Sürükle = etrafa bak; W A S D / oklar = ileri-geri-sola-sağa;
+       Q / E (ya da Page Down / Page Up) = aşağı / yukarı; Shift = hızlı; tekerlek = ileri-geri. Dokunmatikte ekrandaki yön düğmeleri. */
   const NAV_TXT = {
-    tr: { full: 'Tam ekran', exit: 'Küçült', zin: 'Yakınlaştır', zout: 'Uzaklaştır', axes: 'Eksenler', reset: 'Sıfırla', tools: '3B görünüm denetimleri' },
-    en: { full: 'Full screen', exit: 'Exit full screen', zin: 'Zoom in', zout: 'Zoom out', axes: 'Axes', reset: 'Reset', tools: '3D view controls' },
+    tr: { full: 'Tam ekran', exit: 'Küçült', zin: 'Yakınlaştır', zout: 'Uzaklaştır', free: 'Serbest kamera', back: 'Araca dön', reset: 'Sıfırla', tools: '3B görünüm denetimleri',
+      help: 'Sürükle: etrafa bak · W A S D ya da oklar: ilerle · Q / E: aşağı / yukarı · Shift: hızlı',
+      helpTouch: 'Sürükle: etrafa bak · Düğmelerle ilerle',
+      mv: { f: 'İleri', b: 'Geri', l: 'Sola', r: 'Sağa', u: 'Yukarı', d: 'Aşağı' }, pad: 'Kamera hareketi' },
+    en: { full: 'Full screen', exit: 'Exit full screen', zin: 'Zoom in', zout: 'Zoom out', free: 'Free camera', back: 'Back to craft', reset: 'Reset', tools: '3D view controls',
+      help: 'Drag: look around · W A S D or arrows: move · Q / E: down / up · Shift: faster',
+      helpTouch: 'Drag: look around · Use the buttons to move',
+      mv: { f: 'Forward', b: 'Back', l: 'Left', r: 'Right', u: 'Up', d: 'Down' }, pad: 'Camera movement' },
   }[typeof LANG !== 'undefined' && LANG === 'en' ? 'en' : 'tr'];
+  const TOUCH = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
+  const FREE = new Set(); // serbest kipteki gezinmeler (klavye bunlara gider)
   function createNav(yaw, pitch, limits) {
-    const nav = { yaw, pitch, zoom: 1, panX: 0, panY: 0, axes: true, idleAt: 0, active: false, home: { yaw, pitch }, lim: limits || { pMin: -0.9, pMax: 1.1 } };
-    nav.reset = () => { nav.yaw = nav.home.yaw; nav.pitch = nav.home.pitch; nav.zoom = 1; nav.panX = 0; nav.panY = 0; nav.idleAt = performance.now(); };
+    const nav = {
+      yaw, pitch, zoom: 1, panX: 0, panY: 0, idleAt: 0, active: false, home: { yaw, pitch }, lim: limits || { pMin: -0.9, pMax: 1.1 },
+      free: false, pos: new THREE.Vector3(), lyaw: 0, lpitch: 0, keys: new Set(), hold: {}, fast: false, last: 0, cam: null, kick: () => {},
+    };
+    nav.setFree = (on) => {
+      if (on && nav.cam) {
+        // kameranın şu anki yerinden ve bakış yönünden başla (zıplama olmasın)
+        nav.pos.copy(nav.cam.position);
+        const d = nav.cam.getWorldDirection(new THREE.Vector3());
+        nav.lyaw = Math.atan2(-d.x, -d.z); nav.lpitch = Math.asin(Math.max(-1, Math.min(1, d.y)));
+      }
+      nav.free = !!on && !!nav.cam; nav.keys.clear(); nav.hold = {}; nav.last = 0;
+      if (nav.free) FREE.add(nav); else FREE.delete(nav);
+      if (nav.onFree) nav.onFree(nav.free);
+    };
+    nav.reset = () => { nav.setFree(false); nav.yaw = nav.home.yaw; nav.pitch = nav.home.pitch; nav.zoom = 1; nav.panX = 0; nav.panY = 0; nav.idleAt = performance.now(); };
     nav.setZoom = (z) => { nav.zoom = Math.max(0.35, Math.min(4, z)); nav.idleAt = performance.now(); };
     return nav;
   }
@@ -282,21 +306,37 @@
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.v3-full')) { document.querySelectorAll('.v3-full').forEach((el) => el.classList.remove('v3-full')); syncBars(); } });
 
+  // serbest kamera klavyesi: sadece ekranda görünen serbest kipteki görünüme gider; yazı alanlarında çalışmaz
+  const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', KeyE: 'u', PageUp: 'u', KeyQ: 'd', PageDown: 'd' };
+  function liveFree() { for (const n of FREE) { if (n.cv && n.cv.isConnected && !n.cv.hidden) return n; } return null; }
+  window.addEventListener('keydown', (e) => {
+    const n = liveFree(); if (!n) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+    n.fast = e.shiftKey;
+    const k = KEYMAP[e.code]; if (!k) return;
+    e.preventDefault(); n.keys.add(k);
+    if (!e.repeat) n.step = k; // kısa basışta da küçük bir adım at
+    n.kick();
+  });
+  window.addEventListener('keyup', (e) => { for (const n of FREE) { n.fast = e.shiftKey; const k = KEYMAP[e.code]; if (k) n.keys.delete(k); } });
+  window.addEventListener('blur', () => { for (const n of FREE) { n.keys.clear(); n.hold = {}; } });
+
   // sürükle / iki parmak / tekerlek
   function bindGestures(cv, nav, fullEl, kick) {
+    nav.cv = cv; nav.kick = kick;
     const pts = new Map();
     let mode = null, st = null;
     const snap = () => {
       const a = [...pts.values()];
       const mid = a.length > 1 ? { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 } : a[0];
       const dist = a.length > 1 ? Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) : 0;
-      return { mid, dist, yaw: nav.yaw, pitch: nav.pitch, zoom: nav.zoom, panX: nav.panX, panY: nav.panY };
+      return { mid, dist, yaw: nav.yaw, pitch: nav.pitch, zoom: nav.zoom, panX: nav.panX, panY: nav.panY, lyaw: nav.lyaw, lpitch: nav.lpitch };
     };
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     cv.addEventListener('pointerdown', (e) => {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       // pointer capture kullanılmıyor: takılı kalırsa araç çubuğu tıklamaları tuvale gidiyordu; pencereyi dinle
-      mode = pts.size >= 2 ? 'pinch' : (e.button === 2 || e.shiftKey ? 'pan' : 'rot');
+      mode = pts.size >= 2 ? 'pinch' : (!nav.free && (e.button === 2 || e.shiftKey) ? 'pan' : 'rot');
       st = snap(); nav.active = true; nav.idleAt = performance.now();
       cv.classList.add('grab'); if (nav.onInteract) nav.onInteract();
       kick();
@@ -305,7 +345,12 @@
       if (!pts.has(e.pointerId) || !mode) return;
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const now = snap(), h = cv.clientHeight || 300, dx = now.mid.x - st.mid.x, dy = now.mid.y - st.mid.y;
-      if (mode === 'rot') {
+      if (nav.free) {
+        // serbest kip: tutup çekiyormuş gibi etrafa bak; iki parmak ileri-geri
+        nav.lyaw = st.lyaw + dx * 0.005;
+        nav.lpitch = Math.max(-1.5, Math.min(1.5, st.lpitch + dy * 0.005));
+        if (mode === 'pinch' && st.dist > 0) { nav.pinch = Math.log(now.dist / st.dist); }
+      } else if (mode === 'rot') {
         nav.yaw = st.yaw + dx * 0.01;
         nav.pitch = Math.max(nav.lim.pMin, Math.min(nav.lim.pMax, st.pitch + dy * 0.006));
       } else {
@@ -319,13 +364,14 @@
     const up = (e) => {
       if (!pts.has(e.pointerId)) return;
       pts.delete(e.pointerId);
-      if (pts.size === 0) { mode = null; nav.active = false; cv.classList.remove('grab'); }
-      else { mode = 'rot'; st = snap(); }
+      if (pts.size === 0) { mode = null; nav.active = false; nav.pinch = 0; cv.classList.remove('grab'); }
+      else { mode = 'rot'; nav.pinch = 0; st = snap(); }
       nav.idleAt = performance.now();
     };
     window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
-    // tekerlek sayfayı kaydırmasın diye sadece tam ekranda yakınlaştırır
     cv.addEventListener('wheel', (e) => {
+      if (nav.free) { e.preventDefault(); nav.wheel = (nav.wheel || 0) - e.deltaY; kick(); return; }
+      // yörünge kipinde tekerlek sayfayı kaydırmasın diye sadece tam ekranda yakınlaştırır
       if (!isFull(fullEl())) return;
       e.preventDefault();
       nav.setZoom(nav.zoom * Math.exp(-e.deltaY * 0.0015));
@@ -333,7 +379,7 @@
     }, { passive: false });
   }
 
-  // araç çubuğu: Tam ekran, +, −, Eksenler, Sıfırla
+  // araç çubuğu: Tam ekran, +, −, Serbest kamera, Sıfırla (+ serbest kipte yardım ve yön düğmeleri)
   function toolbar(container, fullEl, nav, kick, extraClass) {
     const bar = document.createElement('div');
     bar.className = 'v3-tools' + (extraClass ? ' ' + extraClass : '');
@@ -341,12 +387,29 @@
     bar.innerHTML = `<button type="button" class="v3-btn" data-v3="full">${NAV_TXT.full}</button>
       <button type="button" class="v3-btn" data-v3="in" aria-label="${NAV_TXT.zin}">+</button>
       <button type="button" class="v3-btn" data-v3="out" aria-label="${NAV_TXT.zout}">−</button>
-      <button type="button" class="v3-btn" data-v3="axes" aria-pressed="${nav.axes}">${NAV_TXT.axes}</button>
+      <button type="button" class="v3-btn" data-v3="free" aria-pressed="false">${NAV_TXT.free}</button>
       <button type="button" class="v3-btn" data-v3="reset">${NAV_TXT.reset}</button>`;
+    // serbest kip: yardım satırı + yön düğmeleri (basılı tuttukça hareket)
+    const help = document.createElement('div'); help.className = 'v3-help'; help.hidden = true;
+    help.textContent = TOUCH ? NAV_TXT.helpTouch : NAV_TXT.help;
+    const pad = document.createElement('div'); pad.className = 'v3-pad'; pad.hidden = true;
+    pad.setAttribute('role', 'group'); pad.setAttribute('aria-label', NAV_TXT.pad);
+    const M = NAV_TXT.mv;
+    pad.innerHTML = `<button type="button" class="v3-btn" data-mv="u">${M.u}</button><button type="button" class="v3-btn" data-mv="f" aria-label="${M.f}">▲</button><button type="button" class="v3-btn" data-mv="d">${M.d}</button>
+      <button type="button" class="v3-btn" data-mv="l" aria-label="${M.l}">◀</button><button type="button" class="v3-btn" data-mv="b" aria-label="${M.b}">▼</button><button type="button" class="v3-btn" data-mv="r" aria-label="${M.r}">▶</button>`;
+    const stopAll = () => { nav.hold = {}; };
+    pad.addEventListener('pointerdown', (e) => { const b = e.target.closest('[data-mv]'); if (!b) return; e.preventDefault(); nav.hold[b.dataset.mv] = 1; kick(); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => pad.addEventListener(t, stopAll));
+    pad.addEventListener('contextmenu', (e) => e.preventDefault());
+    // klavyeyle de kullanılabilsin: Enter/Boşluk ile kısa bir adım
+    pad.addEventListener('click', (e) => { const b = e.target.closest('[data-mv]'); if (!b || e.detail) return; nav.step = b.dataset.mv; kick(); });
+
     const sync = () => {
       const f = isFull(fullEl());
       const b = bar.querySelector('[data-v3="full"]'); b.textContent = f ? NAV_TXT.exit : NAV_TXT.full; b.setAttribute('aria-pressed', f);
-      bar.querySelector('[data-v3="axes"]').setAttribute('aria-pressed', nav.axes);
+      const fr = bar.querySelector('[data-v3="free"]'); fr.textContent = nav.free ? NAV_TXT.back : NAV_TXT.free; fr.setAttribute('aria-pressed', nav.free);
+      bar.querySelector('[data-v3="in"]').hidden = nav.free; bar.querySelector('[data-v3="out"]').hidden = nav.free;
+      help.hidden = !nav.free; pad.hidden = !nav.free;
     };
     bar.addEventListener('click', (e) => {
       const b = e.target.closest('[data-v3]'); if (!b) return;
@@ -355,12 +418,18 @@
       if (k === 'full') toggleFull(fullEl());
       else if (k === 'in') nav.setZoom(nav.zoom * 1.25);
       else if (k === 'out') nav.setZoom(nav.zoom / 1.25);
-      else if (k === 'axes') nav.axes = !nav.axes;
+      else if (k === 'free') {
+        nav.setFree(!nav.free);
+        // küçük ekranda yön düğmeleri sığmaz: serbest kamera açılınca tam ekrana geç
+        if (nav.free && !isFull(fullEl()) && (TOUCH || window.innerWidth < 720)) toggleFull(fullEl());
+      }
       else if (k === 'reset') nav.reset();
-      setTimeout(sync, 60); kick();
+      sync(); setTimeout(sync, 60); kick();
     });
+    nav.onFree = () => sync();
     bar.sync = sync;
-    container.appendChild(bar);
+    container.appendChild(bar); container.appendChild(help); container.appendChild(pad);
+    bar.parts = [help, pad];
     sync();
     return bar;
   }
@@ -368,29 +437,6 @@
   function syncBars() { document.querySelectorAll('.v3-tools').forEach((b) => b.sync && b.sync()); }
   document.addEventListener('fullscreenchange', syncBars);
   document.addEventListener('webkitfullscreenchange', syncBars);
-
-  // eksenler: X kırmızı, Y yeşil, Z mavi; -boy..+boy çizgi, + uçta ok ve harf
-  function makeAxes(size) {
-    const g = new THREE.Group();
-    const AX = [['X', 0xe5534b, [1, 0, 0]], ['Y', 0x57ab5a, [0, 1, 0]], ['Z', 0x539bf5, [0, 0, 1]]];
-    for (const [name, col, d] of AX) {
-      const v = new THREE.Vector3(...d);
-      const geo = new THREE.BufferGeometry().setFromPoints([v.clone().multiplyScalar(-size), v.clone().multiplyScalar(size)]);
-      g.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.85 })));
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(size * 0.025, size * 0.07, 12), new THREE.MeshBasicMaterial({ color: col }));
-      tip.position.copy(v.clone().multiplyScalar(size));
-      tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v);
-      g.add(tip);
-      const c = document.createElement('canvas'); c.width = c.height = 64;
-      const x = c.getContext('2d'); x.font = 'bold 44px system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillStyle = '#' + col.toString(16).padStart(6, '0'); x.fillText(name, 32, 34);
-      const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-      sp.position.copy(v.clone().multiplyScalar(size * 1.13)); sp.scale.setScalar(size * 0.13);
-      g.add(sp);
-    }
-    return g;
-  }
 
   // arka plan yıldızları (yarıçap r küresi üzerinde), birkaç parlak yıldızla
   function makeStars(n, r, seed) {
@@ -412,13 +458,46 @@
     return grp;
   }
 
-  // kamerayı merkez etrafında yerleştir; yakınlaştırma ve kaydırmayı uygula
+  // Kamerayı yerleştir. Yörünge kipi: merkez etrafında (yakınlaştırma + kaydırma). Serbest kip: kendi konumu ve bakışı.
+  // dist sahnenin ölçeğidir (serbest hızı buna göre). Kamera hareket ediyorsa true döner.
+  const MV = { f: [0, 0, -1], b: [0, 0, 1], l: [-1, 0, 0], r: [1, 0, 0], u: [0, 1, 0], d: [0, -1, 0] };
   function placeCamera(cam, c, nav, dist) {
-    const d = dist / nav.zoom;
-    cam.position.set(c.x + Math.sin(nav.yaw) * Math.cos(nav.pitch) * d, c.y + Math.sin(nav.pitch) * d, c.z + Math.cos(nav.yaw) * Math.cos(nav.pitch) * d);
-    cam.lookAt(c);
-    cam.translateX(nav.panX * dist * 0.5);
-    cam.translateY(nav.panY * dist * 0.5);
+    nav.cam = cam;
+    if (!nav.free) {
+      const d = dist / nav.zoom;
+      cam.position.set(c.x + Math.sin(nav.yaw) * Math.cos(nav.pitch) * d, c.y + Math.sin(nav.pitch) * d, c.z + Math.cos(nav.yaw) * Math.cos(nav.pitch) * d);
+      cam.lookAt(c);
+      cam.translateX(nav.panX * dist * 0.5);
+      cam.translateY(nav.panY * dist * 0.5);
+      return false;
+    }
+    const now = performance.now(), dt = nav.last ? Math.min(0.05, (now - nav.last) / 1000) : 0;
+    nav.last = now;
+    cam.rotation.order = 'YXZ';
+    cam.rotation.set(nav.lpitch, nav.lyaw, 0);
+    // ileri-geri yönü bakışla, sola-sağa yataydan, yukarı-aşağı dünya ekseninden
+    const fwd = new THREE.Vector3(0, 0, -1).applyEuler(cam.rotation);
+    const right = new THREE.Vector3(Math.cos(nav.lyaw), 0, -Math.sin(nav.lyaw));
+    const up = new THREE.Vector3(0, 1, 0);
+    let mx = 0, my = 0, mz = 0;
+    const act = new Set([...nav.keys, ...Object.keys(nav.hold).filter((k) => nav.hold[k])]);
+    for (const k of act) { mx += MV[k][0]; my += MV[k][1]; mz += MV[k][2]; }
+    const speed = dist * 0.55 * (nav.fast ? 3 : 1);
+    const move = new THREE.Vector3()
+      .addScaledVector(right, mx * speed * dt)
+      .addScaledVector(up, my * speed * dt)
+      .addScaledVector(fwd, -mz * speed * dt);
+    if (nav.step) { const s = MV[nav.step]; move.addScaledVector(right, s[0] * dist * 0.05).addScaledVector(up, s[1] * dist * 0.05).addScaledVector(fwd, -s[2] * dist * 0.05); nav.step = null; }
+    if (nav.wheel) { move.addScaledVector(fwd, nav.wheel * dist * 0.0012); nav.wheel = 0; }
+    if (nav.pinch) move.addScaledVector(fwd, nav.pinch * speed * dt * 4);
+    nav.pos.add(move);
+    // çok uzağa kaçmasın
+    const lim = dist * 12;
+    if (nav.pos.distanceTo(c) > lim) nav.pos.sub(c).setLength(lim).add(c);
+    // gezegenin içine girmesin (uçuş ekranı nav.minR verir)
+    if (nav.minR && nav.pos.distanceTo(c) < nav.minR) nav.pos.sub(c).setLength(nav.minR).add(c);
+    cam.position.copy(nav.pos);
+    return act.size > 0 || !!nav.pinch;
   }
 
   /* ---------------- sahne ---------------- */
@@ -446,9 +525,8 @@
     renderer.autoClear = false;
     // yıldızlar ayrı sahnede, en arkada (araçla birlikte döner)
     const sscene = new THREE.Scene(); sscene.add(makeStars(900, 60, 7));
-    const axes = makeAxes(1); scene.add(axes);
     const nav = createNav(-0.55, 0.28);
-    const v = { pscene, pcam, planet: null, pBody: null, sscene, axes, nav, host, renderer, cv, scene, camera, craft, parts: new Map(), dist: 0, distT: 6, pops: [], raf: 0, visible: true, hinted: false };
+    const v = { pscene, pcam, planet: null, pBody: null, sscene, nav, host, renderer, cv, scene, camera, craft, parts: new Map(), dist: 0, distT: 6, pops: [], raf: 0, visible: true, hinted: false };
     nav.onInteract = () => { if (!v.hinted) { v.hinted = true; const h = v.host.querySelector('.ws-3d-hint'); if (h) h.classList.add('gone'); } };
     // sürükle = döndür, iki parmak / sağ tık = kaydır ve yakınlaştır (dikey tek parmak sayfayı kaydırır)
     bindGestures(cv, nav, () => v.host.parentElement, () => kick());
@@ -522,7 +600,7 @@
     const fitV = sph.radius / Math.sin(fov / 2), fitH = sph.radius / Math.sin(Math.atan(Math.tan(fov / 2) * aspect));
     V.distT = Math.max(fitV, fitH) * 0.78;
     V.radius = sph.radius;
-    V.axes.scale.setScalar(sph.radius * 1.15); V.axes.position.copy(sph.center);
+
     if (!V.dist) V.dist = V.distT;
   }
 
@@ -551,11 +629,10 @@
       p.obj.scale.setScalar(1); return false;
     });
     // kendiliğinden yavaş dönüş (kullanıcı bıraktıktan 2,5 sn sonra)
-    if (!REDUCED_MOTION && !V.nav.active && now - V.nav.idleAt > 2500) { V.nav.yaw += 0.0035; busy = true; }
+    if (!REDUCED_MOTION && !V.nav.active && !V.nav.free && now - V.nav.idleAt > 2500) { V.nav.yaw += 0.0035; busy = true; }
     if (Math.abs(V.dist - V.distT) > 0.01) { V.dist += (V.distT - V.dist) * 0.12; busy = true; } else V.dist = V.distT;
     const c = V.center || new THREE.Vector3();
-    placeCamera(V.camera, c, V.nav, V.dist);
-    V.axes.visible = V.nav.axes;
+    if (placeCamera(V.camera, c, V.nav, V.dist)) busy = true;
     V.craft.position.y = REDUCED_MOTION ? 0 : Math.sin(now / 900) * 0.04;
     V.renderer.clear();
     V.sscene.position.copy(V.camera.position); // yıldızlar sonsuz uzakta gibi
@@ -587,7 +664,7 @@
     failed() { return state === 'fail'; },
     nasaTex,
     // uçuş ekranı da aynı gezinme araçlarını kullanır
-    nav: { createNav, bindGestures, toolbar, makeAxes, makeStars, placeCamera, isFull, exitFull },
+    nav: { createNav, bindGestures, toolbar, makeStars, placeCamera, isFull, exitFull },
     // uçuş ekranı (flight3d.js) için: aracın tüm parçaları tek grup halinde
     build(R) { const g = new THREE.Group(); buildParts(R).forEach((p) => g.add(p.obj)); return g; },
     show(host, R) {
