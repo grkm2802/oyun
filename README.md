@@ -78,6 +78,7 @@ Site simgelerini yeniden üretmek için: `python scripts/make_assets.py` (Pillow
 
 ## Lisanslar
 - Simgeler: [Lucide](https://lucide.dev) v0.460.0, ISC lisansı. Gezegen görselleri, uzay aracı çizimi ve site simgeleri bu proje için kodla üretildi.
+- 3B çizim: [Three.js](https://threejs.org) r149, MIT lisansı (`mission-game/vendor/`).
 - Yazı tipi: Atkinson Hyperlegible Next (Google Fonts, SIL Open Font License).
 - Projenin kendi kodu için henüz bir lisans seçilmedi (açık kaynak yapmak istersen örneğin MIT eklenebilir).
 

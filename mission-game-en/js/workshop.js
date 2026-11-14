@@ -235,6 +235,14 @@
   /* ---------- sahne ---------- */
   function renderStage(R) {
     const box = $('#ws-craft');
+    // 3B (craft3d.js): Three.js hazırsa 3B çiz; yüklenince sahneyi yenile. Olmazsa SVG çizim.
+    if (window.Craft3D && Craft3D.ready(() => { if (S.screen === 'design' && $('#ws-craft')) renderStage(calc()); }) && Craft3D.show(box, R)) {
+      $('#ws-orbit').textContent = ORBITS[S.design.orbit].short;
+      const errs3 = R.errors.length;
+      $('#ws-flags').innerHTML = errs3 ? `<button class="ws-flag bad" data-act="step" data-v="launch">${T.issues(errs3)}</button>` : '';
+      return;
+    }
+    box.classList.remove('is3d');
     box.innerHTML = craftSVG(R);
     const parts = [...box.querySelectorAll('[data-part]')].map((g) => g.dataset.part);
     if (!REDUCED_MOTION) box.querySelectorAll('[data-part]').forEach((g, i) => {

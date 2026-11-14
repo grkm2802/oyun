@@ -208,7 +208,7 @@
 
   /* Ekran değişince: ilk ziyarette ilgili turu öner */
   window.onScreen = (screen) => {
-    if (tour) { if (tour === 'main' && screen !== 'title' && screen !== 'design') end(); else schedule(); return; }
+    if (tour) { const home = { main: ['title', 'design'], flight: ['sim'], report: ['report'] }[tour] || []; if (!home.includes(screen)) end(); else schedule(); return; }
     if (screen === 'title' && !seen('main')) setTimeout(() => { if (!tour && S.screen === 'title') start('main'); }, 400);
     if (screen === 'sim' && !seen('flight')) {
       const wait = () => {

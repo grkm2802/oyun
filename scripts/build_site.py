@@ -24,7 +24,7 @@ DIST = os.path.join(ROOT, "dist")
 FILES = ["index.html", "loader.js", "firebase-config.js", "sw.js", "404.html", "site.webmanifest", "robots.txt", "sitemap.xml", "_headers"]
 DIRS = {
     "assets": None,
-    "mission-game": ["css", "js"],
+    "mission-game": ["css", "js", "vendor"],
     "mission-game-en": ["js"],
 }
 TEXT_EXT = {".html", ".js", ".css", ".xml", ".txt", ".webmanifest", ""}
@@ -65,7 +65,8 @@ def main():
                 continue
             with open(p, encoding="utf-8") as fh:
                 s = fh.read()
-            if "%" not in s:
+            # sadece yer tutucu içeren dosyalara dokun (ör. vendor/three.min.js olduğu gibi kalsın)
+            if not any(k in s for k in ("%SITE_URL%", "%BASE_PATH%", "%BUILD_ID%", "%BUILD_DATE%")):
                 continue
             if not url:
                 # mutlak adres gerektiren satırları çıkar
