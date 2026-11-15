@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission Architect has moved · Görev Mimarı taşındı</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://mission-architect.github.io/">
+<meta http-equiv="refresh" content="1; url=https://mission-architect.github.io/">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f151c; color: #e6ebf0; font: 18px/1.5 system-ui, sans-serif; padding: 0 16px; }
+  main { max-width: 520px; display: grid; gap: 12px; }
+  a { color: #7fb0ff; font-weight: 700; }
+</style>
+<script>
+  // Eski adresteki service worker'ı kaldır, sonra aynı dil seçimiyle yeni adrese git.
+  (function () {
+    var to = 'https://mission-architect.github.io/' + (location.search || '');
+    try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }); } catch (e) {}
+    location.replace(to);
+  })();
+</script>
+</head>
+<body>
+<main>
+  <h1>Mission Architect has moved</h1>
+  <p>New address: <a href="https://mission-architect.github.io/">mission-architect.github.io</a></p>
+  <p lang="tr">Görev Mimarı yeni adresine taşındı: <a href="https://mission-architect.github.io/">mission-architect.github.io</a></p>
+</main>
+</body>
+</html>
